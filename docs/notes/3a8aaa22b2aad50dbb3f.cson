@@ -1,0 +1,61 @@
+type: "MARKDOWN_NOTE"
+folder: "d4855edc37196573049e"
+title: "Slate.js"
+content: '''
+  # Slate.js
+  
+  https://github.com/danburzo/awesome-slate
+  
+  ## Editor Examples (Slate.js)
+  
+  https://github.com/hvf/franchise
+  
+  https://github.com/JoelOtter/kajero
+  
+  medium-editor clone
+  https://github.com/bkniffler/slate-mate
+  
+  https://github.com/ory/editor
+  
+  https://github.com/rubybrowncoat/react-draft-js-block-editor/tree/v1.0.3
+  
+  https://github.com/TroyAlford/wiki-editor
+  
+  https://github.com/nossas/slate-editor
+  https://slate-editor.bonde.org/
+  
+  ---
+  
+  ## slate plugins
+  
+  slate-markdown live preview/highlighting
+  https://slate-markdown.spectrum.chat
+  
+  lots
+  https://github.com/ianstormtaylor/slate-plugins
+  
+  https://yarnpkg.com/en/package/markup-it
+  markup-it is a JavaScript library to serialize/deserialize markdown content using an intermediate format backed by an immutable model.
+  
+  nested tables!
+  https://github.com/jasonphillips/slate-deep-table
+  
+  ## slate-react
+  - https://github.com/ianstormtaylor/slate/tree/master/packages/slate-react
+  
+  ## slate-hyperscript / slate-sugar
+  - https://github.com/ianstormtaylor/slate/issues/1154
+  - https://github.com/ianstormtaylor/slate/blob/master/packages/slate/Changelog.md#0240--september-11-2017
+  - https://github.com/ianstormtaylor/slate/tree/master/packages/slate-hyperscript
+  - https://github.com/GitbookIO/slate-sugar
+  
+  
+  
+  **missing** https://yarnpkg.com/en/package/slate-schema
+  Slate plugin to do schema validation, the concept is based on Prosemirror schemas.
+'''
+tags: []
+isStarred: false
+isTrashed: false
+createdAt: "2017-10-17T22:16:33.975Z"
+updatedAt: "2017-10-19T09:27:19.822Z"

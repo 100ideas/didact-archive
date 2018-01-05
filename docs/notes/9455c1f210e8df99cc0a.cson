@@ -1,0 +1,104 @@
+type: "MARKDOWN_NOTE"
+folder: "d4855edc37196573049e"
+title: "Bookmarks"
+content: '''
+  # Bookmarks
+  
+  1. in safari, `File > export bookmarks`
+  2. delete everything but desired subfolder in html
+  3. `panscrape` `bookmarks.html`; paste here
+  
+  ### 17-10-17
+  
+  ### example apps
+  
+  [rubybrowncoat/react-draft-js-block-editor at v1.0.3](https://github.com/rubybrowncoat/react-draft-js-block-editor/tree/v1.0.3)
+  
+  [draft-js Block Editor](https://rubybrowncoat.github.io/react-draft-js-block-editor/)
+  
+  [JoelOtter/kajero: Interactive JavaScript notebooks with clever graphing](https://github.com/JoelOtter/kajero)
+  
+  [Kajero](http://www.joelotter.com/kajero/)
+  
+  ### docs
+  
+  [Learning React, 1st Edition &gt; Cover : Safari Books Online](http://proquest.safaribooksonline.com.ezproxy.sfpl.org/book/programming/9781491954614/firstchapter)
+  
+  ### slatejs
+  
+  [Slatejs - Yarn packages | Yarn](https://yarnpkg.com/en/packages?q=slate)
+  
+  [@ianstormtaylor's Slate Plugins](https://ianstormtaylor.github.io/slate-plugins/#/slate-auto-replace)
+  
+  [slate-plugins/package.json at master · ianstormtaylor/slate-plugins](https://github.com/ianstormtaylor/slate-plugins/blob/master/package.json)
+  
+  [Slate Markdown by Spectrum](https://slate-markdown.spectrum.chat/)
+  
+  ### forms & schemas
+  
+  [mozilla-services/react-jsonschema-form: A React component for building Web forms from JSON Schema.](https://github.com/mozilla-services/react-jsonschema-form#file-widgets)
+  
+  [react-jsonschema-form playground](https://mozilla-services.github.io/react-jsonschema-form/)
+  
+  [Data Hopping: From SQL to GraphQL to JSON – codeburst](https://codeburst.io/data-hopping-from-sql-to-graphql-to-json-a6ddb4ff34bf)
+  
+  [JoelOtter/reshaper: Reshape JavaScript objects to match a schema](https://github.com/JoelOtter/reshaper)
+  
+  [Reshaper](http://www.joelotter.com/reshaper/)
+  
+  [Mongorito - MongoDB ODM for Node.js based on ES6 generators](http://mongorito.com/)
+  
+  ### frontend
+  
+  [Blueprint – A React-based UI toolkit for the web](http://blueprintjs.com/)
+  
+  [Blueprint – A React UI toolkit for the web | Hacker News](https://news.ycombinator.com/item?id=12939232)
+  
+  [palantir/blueprint: A React-based UI toolkit for the web](https://github.com/palantir/blueprint)
+  
+  [Scaling product design with Blueprint – Palantir – Medium](https://medium.com/@palantir/scaling-product-design-with-blueprint-25492827bb4a)
+  
+  [Frequently asked questions · palantir/blueprint Wiki](https://github.com/palantir/blueprint/wiki/Frequently-Asked-Questions)
+  
+  ### DnD & filedroppers
+  
+  [React DnD](http://react-dnd.github.io/react-dnd/docs-overview.html)
+  
+  [react-dnd/react-dnd: Drag and Drop for React](https://github.com/react-dnd/react-dnd)
+  
+  [Shopify/draggable: The JavaScript Drag & Drop library your grandparents warned you about.](https://github.com/Shopify/draggable)
+  
+  [react-dropzone](https://react-dropzone.js.org/)
+  
+  [react-dropzone/react-dropzone: Simple HTML5 drag-drop zone with React.js.](https://github.com/react-dropzone/react-dropzone)
+  
+  [Filestack Launches File Picker V3 • Filestack Blog](https://blog.filestack.com/product-updates/filestack-launches-file-picker-v3/)
+  
+  ### parsers
+  
+  [Ohm: Parsing Made Easy - Nextjournal](https://nextjournal.com/dubroy/ohm-parsing-made-easy)
+  
+  [Ohm Editor](https://ohmlang.github.io/editor/)
+  
+  [Seymour: Live Programming for the Classroom](https://harc.github.io/seymour-live2017/)
+  
+  [Scanning · Crafting Interpreters](http://www.craftinginterpreters.com/scanning.html)
+  
+  [languagengine - Blog - Abstract Chart Parsing](http://languagengine.co/blog/abstract-chart-parsing/)
+  
+  [languagengine - Blog - So you want to write a type checker...](http://languagengine.co/blog/so-you-want-to-write-a-type-checker/)
+  
+  [Home - nearley.js - JS Parsing Toolkit](https://nearley.js.org/)
+  
+  [TextMate Manual » Language Grammars](http://manual.macromates.com/en/language_grammars)
+  
+  [semanticvoid » Blog Archive » The Grammar Of Thought](http://semanticvoid.com/blog/2008/09/03/the-grammar-of-thought/)
+  
+  [A brief introduction to computational semantics](http://www.akornilo.com/computational-semantics/)
+  
+'''
+tags: []
+isStarred: false
+isTrashed: false
+createdAt: "2017-10-17T21:47:03.803Z"
+updatedAt: "2017-10-17T21:49:33.057Z"

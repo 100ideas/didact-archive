@@ -1,0 +1,13 @@
+Master Mix Calcs,,,,,
+,,,,,
+,,,,,
+,Ci,Cf,Vol. (uL),# Rxns,Total Vol (uL)
+,,,,,
+Template,,,2,,
+Promega qPCR Probe Master Mix,2,1,10,105,1050
+Pf,10,0.32,0.64,105,67.2
+Pr,10,0.32,0.64,105,67.2
+probe (Biosearch Technologies),10,0.2,0.4,105,42
+BSA,20,0.60,0.6,105,63
+H2O,,,6.72,105,705.6
+Total,,,20,,Add 18uL to each well

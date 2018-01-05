@@ -1,0 +1,29 @@
+Results Page
+------------
+
+page elements:
+
+- date
+- target short description
+- gene name
+- rsID
+- user comment
+- DNA badge (image)
+- chromatogram (image)
+- DNA sequence (text, like code sample)
+- link to data zipfile
+- link to target page
+
+
+Example:
+
+- 5/13/2011
+- Thiocarbamide Bitter Taste
+- TAS2R38
+- rs713598
+- "bitter taste trait polymorphism from the alpha tests Mac & I did"
+- [DNA_badge.jpeg]
+- [chromatogram-page1.jpeg]
+-CCNNNNNNNNNNNNTAGCATGATGATGGCTTGGTAGCTGTGGTTCAGTGGTTCACTCAACTTCTGGAAGTGGGTAAGCTGGATAGCACTCAGGAACAGCAGTCCATGCAGGAAAAGCCGGCTGATGCTGAGACACAGCAGCACACAATCACTGTTGCTCAGTGCCTGCCTCTTCACTACATCCCAAAAATTCACCAAGAAAACGAAGGCATTGGTCAGAAACCCCACTGCAAACTCCAGGACTGAAATGAACAGAAATGTACTCCTGACTTCATAGGACACAGTGCGGATGCGAGTTAGAGTCAACATGATGTCACTTCTCTAATTGGCTATTCTACTTCTCTTCTCTAGTTGGCTAATCTAAAGACCTGGTTGCCACCCAGTGCAGAAAGGTAAATGTACGTTCCAAGCCAGGACCTTTCCAN
+- [data_download.zip]
+- [cofactorbio.com/genelaser/targets/rs713598]

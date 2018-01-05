@@ -1,0 +1,70 @@
+Notes about the specific SNP:
+
+rs713598 - Bitter Taste (TAS2R38)
+=================================
+http://www.ncbi.nlm.nih.gov/gene/5726
+NG_016141.1
+
+Primer Sequences (~833 bp amplicon)
+
+- TCCAGGCTGGGGTCACGAGAG (Forward Primer)
+- GGAAAGGTCCTGGCTTGGAACGTA (Reverse Primer)
+- CAGGCAGCAAGCCAGAGGTTGG (Sequencing)
+
+
+SNP Calling instructions w/ NCBI BLAST & Sequence Viewer
+--------------------------------------------------------
+
+1. Find the .ab1 file from the sequencing results we want to analyze on disk. Open it up in 4Peaks.  Click the info 
+button on the lower right.  Click the sequence tab on the info window.  Select all.
+
+- .ab1 file: Josh_Bitter_Taste_rs713598_seq.ab1
+- Sequence: CCNNNNNNNNNNNNTAGCATGATGATGGCTTGGTAGCTGTGGTTCAGTGGTTCACTCAACTTCTGGAAGTGGGTAAGCTGGATAGCACTCAGGAACAGCAGTCCATGCAGGAAAAGCCGGCTGATGCTGAGACACAGCAGCACACAATCACTGTTGCTCAGTGCCTGCCTCTTCACTACATCCCAAAAATTCACCAAGAAAACGAAGGCATTGGTCAGAAACCCCACTGCAAACTCCAGGACTGAAATGAACAGAAATGTACTCCTGACTTCATAGGACACAGTGCGGATGCGAGTTAGAGTCAACATGATGTCACTTCTCTAATTGGCTATTCTACTTCTCTTCTCTAGTTGGCTAATCTAAAGACCTGGTTGCCACCCAGTGCAGAAAGGTAAATGTACGTTCCAAGCCAGGACCTTTCCAN
+
+
+2. Go to http://blast.ncbi.nlm.nih.gov/.  Click on Human under the "BLAST Assembled RefSeq Genomes" heading.  Paste in the sequence from the .ab1 file.  Under "Choose Search Set", select "Genome (reference only)" from the Database dropdown.  Run the blast search by clicking the BLAST button in the lower left.
+
+
+3. On the BLAST result page, look in the upper-left for a capitalized string of text: "NCBI/ BLAST/ blastn suite/ Formatting Results - XXXXXXXXXXX".  This is the BLAST Result ID (RID) number.  Copy it for later.
+
+- RID: WSZ4CTMX011
+
+
+4. Scroll down to the first alignment.  You will see a textual representation of the best alignment between the our sample and the reference human genome.  On the sides of the alignment you will also see coordinates indicating where in the two DNA sequences the alignment begins.  Note that with sequences from sanger sequencing, the alignment will probably begin 20-40 base pairs from the beginning of the sequences, since the initial reads are usually noisy and hard to call.  Note the correspondence between the coordinates of the "Query" and the "Sbjct" and note where in the query sequence the alignment begins.
+
+- Alignment begins at Query position: 15
+- Alignment begins at Sbjct position: 2268819
+
+
+5. Hopefully NCBI has detected a "feature" the DNA query overlaps with.  If so, open the link in a new window (in my case the feature detected was "taste receptor type 2 member 38").  If no feature is detected, open the link to the reference genome sequence at the upper left of the result entry in a new window.
+
+
+6. The initial view of the feature (or genome sequence) linked from the BLAST results will be in GenBank (full) format.  Directly above the beginning of the GenBank data, there is a link for alternative "FASTA" and "Graphics" views.  Click the "Graphics" link to present the result in NCBI's Sequence Viewer (an online version of their Genomic Workbench).
+
+
+7. First we'll simplify the data tracks the Sequence Viewer starts with.  In the middle-right of the viewer, click the "Configure" button.  In the "Active Tracks" tab (on the left), turn off everything but "Sequence" and "Genes".  In the "Variation" tab, turn on the "SNP" track.  Now click the configure button on the bottom right.
+
+
+8. Next we'll add a track with the results of our earlier BLAST alignment.  Re-open the "Configure" window and click on the "Custom Data" tab.  Select the "BLAST Results" Data Source.  Paste in the BLAST Results RID string you saved earlier. Click the Configure button and watch the Sequence Viewer load the data and add a new custom track.
+
+
+9. Look for the SNP of interest in the SNP track (rs713598 in this case).  Right click it and select "Set New Marker At Position".  Use the SNP rs number for the name.
+
+
+10. Navigate in the view window to the beginning of the blast alignment track. Zoom all the way in to the sequence. In the coordinate area of the lower pane (just below the menu with buttons on it), click and drag a selection around just the FIRST NUCLEOTIDE of the alignment.  Right click the selection area and select "Set Sequence Origin At Position".
+
+
+11. Now scroll back to the SNP.  The coordinates displayed in the coordinate bar are now relative to the beginning of our BLAST alignment.  But the BLAST alignment does not include the beginning and end nucleotides - the poor-quality ones - that are in the original AB1 file.  So we have to convert the coordinate of the SNP aligned with our BLASTed sample displayed in the NCBI sequence viewer into the corresponding nucleotide coordinate in the .AB1 chromatogram.  To the coordinate displayed in the NCBI sequence viewer, add the sequence offset from the BLAST alignment in step 4 AND SUBTRACT 1.  In my case: 150 + 18 - 1 = 167.  This is the position in the chromatogram file of the SNP.
+
+- coordinate of SNP relative to BLAST Query alignment: 150
+- Alignment offset from 1st base in chromatogram: 15
+- 150 + 15 - 1 = 164
+
+
+12. In 4Peaks, navigate to the position you determined in step 11.  This is the sequence of the SNP.
+
+- Results: Josh is a homozygote C at rs713598.  [According to dbSNP] (http://www.ncbi.nlm.nih.gov/projects/SNP/snp_ref.cgi?rs=713598), this indicates he has a missense mutation that changes an alanine to a proline at position 49 in the encoded protein (TAS2R38:A49P).  Josh should not be able to taste thiocarbamide.
+- An automatic report about the details of this SNPs effect on the taste-receptor gene TAS2R38 is available from [Project HOPE](http://www.cmbi.ru.nl/hope/report/seq/1804976943/pos/49/mut/Pro#)
+
+
+

@@ -1,0 +1,103 @@
+type: "MARKDOWN_NOTE"
+folder: "d4855edc37196573049e"
+title: "GraphQL, JSON-LD and JSON Schema formats explained"
+content: '''
+  ![2017-10-26 at google.com_webmasters_markup-helper.png](/:storage/aujf24h7ouma38fr.png)
+  
+  ---
+  
+  # GraphQL, JSON-LD and JSON Schema formats explained
+  https://react-etc.net/entry/graphql-json-ld-and-json-schema-formats-explained
+  
+  ![json-logo-555px.png](/:storage/tttal7o068sbrzfr.png)
+  
+  In todays API driven world there are plenty of acronyms that sound alien to the average Joe. In fact many of these technologies and their differences are vague to developers alike. Let's look at three data formats that build on JSON: GraphQL, JSON-LD  and JSON Schema.
+  
+  JSON (JavaScript Object Notation) is a generic data format that itself only defines how data is stored on a very basic level. It's a cousin to XML, which allows definition of structured documents and data. [JSON](http://www.json.org) has won over [XML](https://en.wikipedia.org/wiki/XML) largely due to it's simplicity and smaller overhead in processing. JSON is used in many formats, some of which are the three mentioned below.
+  
+  ### GraphQL
+  
+  GraphQL is a data query language that uses JSON both for data requests and responses. In essense you shape a form of JSON request and you expect to get data back in the exact same format.
+  
+  GraphQL is an alternative a [RESTful API](https://en.wikipedia.org/wiki/Representational_state_transfer) and is used largely for data fetching for web applications like ones built with React.js or Angular.js.
+  
+  Official site: [GraphQL.org](http://graphql.org)
+  
+  Example GraphQL JSON:
+  
+      {
+        "user" : {
+          "id": 3500401,
+          "name": "Jing Chen",
+          "isViewerFriend": true,
+          "profilePicture": {
+            "uri": "http://someurl.cdn/pic.jpg",
+            "width": 50,
+            "height": 50
+          }
+        }
+      }
+  
+  ### JSON-LD
+  
+  JSON-LD adds meaning to JSON documents. Linked Data are the origin terms for the LD suffix in the technology. Using this data format you can enrich the data in JSON documents with metadata on what exactly the content is.
+  
+  This is currenly largely used for semantic web applications as well as in [SEO](https://en.wikipedia.org/wiki/Search_engine_optimization) for relaying search engines like Google and Bing detailed information about the data stored on the web site.
+  
+  Official site: [JSON-LD.org](http://json-ld.org)
+  
+  Example JSON-LD:
+  
+      {
+        "@context": "http://json-ld.org/contexts/person.jsonld",
+        "@id": "http://dbpedia.org/resource/John_Lennon",
+        "name": "John Lennon",
+        "born": "1940-10-09",
+        "spouse": "http://dbpedia.org/resource/Cynthia_Lennon"
+      }
+  
+  ### JSON Schema
+  
+  JSON Schema is a definition for what a JSON file should contain. A JSON schema file is essentially an empty shell that can be used to create new documents. It is similar to the [XML DTD](http://www.xmlfiles.com/dtd/) format which could be used to create and validate documents against a specification. 
+  
+  JSON Schemas are used to create JSON objects in a specific format when creating objects. JSON files with data can be validated against a JSON schema, which enables developers to do server side validation for browser generated data - all with using a single shared Schema.
+  
+  Official site: [JSON-Schema.org](http://json-schema.org)
+  
+  Example JSON Schema:
+  
+      {
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "object",
+            "properties": {
+              "streetAddress": {
+                "type": "string"
+              },
+              "city": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "streetAddress",
+              "city"
+            ]
+          }
+        },
+        "required": [
+          "address"
+        ]
+      }
+  
+  Written by *Jorgé* on Tuesday June 7, 2016
+  
+  [Permalink](https://react-etc.net/entry/graphql-json-ld-and-json-schema-formats-explained)
+  
+'''
+tags: []
+isStarred: false
+isTrashed: false
+createdAt: "2017-10-28T02:57:53.080Z"
+updatedAt: "2017-10-28T03:22:42.741Z"

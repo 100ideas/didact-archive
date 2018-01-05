@@ -1,0 +1,49 @@
+type: "MARKDOWN_NOTE"
+folder: "d4855edc37196573049e"
+title: "Coda - next-gen spreadsheet - HN Comments"
+content: '''
+  # Coda - next-gen spreadsheet - HN Comments
+  
+  [conceptoriented 4 hours ago](https://news.ycombinator.com/item?id=15543436)
+  
+  > Coda is a next-generation spreadsheet designed to make Excel a thing of the past
+  There are many projects aimed at making Excel "a thing of the past" but they focus on different needs:
+  o https://airtable.com - use tables for data organization (organize anything)
+  o https://fieldbook.com - spreadsheet as a database
+  o https://www.rowshare.com share data (share rows, not data)
+  o http://conceptoriented.com - data transformations and data wrangling (I am the author)
+  o Coda - integration with documents
+  It is interesting if one of these approaches will eventually dominate or we will have a zoo of spreadsheet-like applications.
+  reply
+  	
+  dunham 3 hours ago 
+  
+  Also https://zenkit.com/ (fairly similar to airtable)
+  Years ago there was DabbleDB - https://en.wikipedia.org/wiki/Dabble_DB And Simile Exhibit experimented with a dynamic UI for filtering / faceting tabular data - http://www.simile-widgets.org/exhibit/
+  The witheve.com stuff (and the underlying "differential dataflow") is also interesting as a model for derived data which updates itself. I'm keeping an eye on that project too.
+  As far as your site goes (I just took a brief glance), if you haven't seen it already, you might find some interesting ideas in the sieuferd project:
+  http://people.csail.mit.edu/ebakke/sieuferd/index.html
+  reply
+  	
+  donarb 2 hours ago
+  
+  Oh, yea. DabbleDB was amazing! Eventually bought by Twitter. Here's a demo video.
+  https://www.youtube.com/watch?v=MCVj5RZOqwY
+  reply
+  	
+  Glench 3 hours ago
+  
+  To throw my hat in the ring, I'm developing a prototype environment for data transformations I'm calling Flowsheets: https://www.youtube.com/watch?v=y1Ca5czOY7Q
+  Although my goal is to use it to understand how we can write software better.
+  reply
+  	
+  coverband 1 hour ago
+  
+  I'm not currently a user but https://www.smartsheet.com/ had pretty advanced features that I liked. The UI was a bit old-fashioned but the tool is capable.
+  reply
+'''
+tags: []
+isStarred: false
+isTrashed: false
+createdAt: "2017-10-24T23:30:59.191Z"
+updatedAt: "2017-10-24T23:32:17.423Z"

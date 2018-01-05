@@ -1,0 +1,45 @@
+rs713598 - Bitter Taste (TAS2R38)
+=================================
+http://www.ncbi.nlm.nih.gov/gene/5726
+NG_016141.1
+
+*Updated Gene Map w/ Primers*: 
+- http://tinyurl.com/23fhf36 (newest)
+- http://tinyurl.com/375d746
+
+Original primer design gene map: 
+http://tinyurl.com/3yac4js
+
+
+Primer Sequences (~833 bp amplicon)
+
+- TCCAGGCTGGGGTCACGAGAG (Forward Primer)
+- GGAAAGGTCCTGGCTTGGAACGTA (Reverse Primer)
+- CAGGCAGCAAGCCAGAGGTTGG (Sequencing)
+- *note:* based on http://bioinformatics.dnalc.org/ptc/animation/index.html
+
+
+
+BLAST SEARCH RESULTS AGAINST PRIMERS
+------------------------------------
+
+>ref|NG_016141.1| Homo sapiens taste receptor, type 2, member 38 (TAS2R38), RefSeqGene 
+on chromosome 7
+Length=8143
+
+ Score = 48.1 bits (24),  Expect = 0.002
+ Identities = 24/24 (100%), Gaps = 0/24 (0%)
+ Strand=Plus/Plus
+
+Query  22    GGAAAGGTCCTGGCTTGGAACGTA  45
+             ||||||||||||||||||||||||
+Sbjct  4971  GGAAAGGTCCTGGCTTGGAACGTA  4994
+
+
+ Score = 42.1 bits (21),  Expect = 0.094
+ Identities = 21/21 (100%), Gaps = 0/21 (0%)
+ Strand=Plus/Minus
+
+Query  1     TCCAGGCTGGGGTCACGAGAG  21
+             |||||||||||||||||||||
+Sbjct  5803  TCCAGGCTGGGGTCACGAGAG  5783
