@@ -4,3 +4,6 @@
 [submodule "mock/examples/kunkel-app"]
 	path = mock/examples/kunkel-app
 	url = https://github.com/dacarlin/kunkel-app
+[submodule "mock/examples/transcriptic101"]
+	path = mock/examples/transcriptic101
+	url = https://github.com/scottbecker/transcriptic101
