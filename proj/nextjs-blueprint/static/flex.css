@@ -1,0 +1,30 @@
+.layout {
+  display: flex;
+  min-height: 100vh;
+  min-width: 100vw;
+  flex-direction: column;
+}
+
+.wrap {
+  box-sizing: border-box;
+  max-width: 1200px;
+  min-width: 80vw;
+  margin: 0 auto;
+}
+
+.container-fluid {
+  padding-right: 2rem;
+  padding-left: 2rem;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.pt-navbar {
+  margin-bottom: 1em;
+}
+
+footer {
+  margin-top: 2em;
+  position: absolute;
+  bottom: 1em;
+}
