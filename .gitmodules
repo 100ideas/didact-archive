@@ -1,0 +1,6 @@
+[submodule "mock/examples/CSHL_ProtocolStudy-Data"]
+	path = mock/examples/CSHL_ProtocolStudy-Data
+	url = https://github.com/lambda-land/ProtocolStudy-Data
+[submodule "mock/examples/kunkel-app"]
+	path = mock/examples/kunkel-app
+	url = https://github.com/dacarlin/kunkel-app
