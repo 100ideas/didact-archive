@@ -1,0 +1,59 @@
+createdAt: "2018-03-28T09:17:47.648Z"
+updatedAt: "2018-03-28T09:22:42.123Z"
+type: "MARKDOWN_NOTE"
+folder: "d4855edc37196573049e"
+title: "elkjs"
+content: '''
+  # elkjs
+  
+  [GitHub - OpenKieler/elkjs: ELK's layout algorithms for JavaScript](https://github.com/OpenKieler/elkjs)
+  
+  The [Eclipse Layout Kernel (ELK)](https://www.eclipse.org/elk/) implements an infrastructure to connect diagram editors or viewers to automatic layout algorithms. This library takes the layout-relevant part of ELK and makes it available to the JavaScript world. 
+  ELK's flagship is a layer-based layout algorithm that is particularly suited for node-link diagrams with an inherent direction and ports (explicit attachment points on a node's border). It is based on the ideas originally introduced by Sugiyama et al. An example can be seen in the screenshot below. 
+  
+  Note that elkjs is not a diagramming framework itself - it computes positions for the elements of a diagrams. You can see it [live in action](https://rtsys.informatik.uni-kiel.de/elklive/) in conjunction with TypeFox's [sprotty](https://github.com/theia-ide/sprotty) diagramming framework. 
+  
+  elkjs is the successor of [klayjs](https://github.com/OpenKieler/klayjs). 
+  
+  ![elkjs-screenshot.png](/:storage/0.3bgo4kjxhl8.png)
+  
+  ---
+  
+  # sprotty
+  sprotty is a next-generation, open-source, web-based diagramming framework. Some selected features:
+  
+  * fast, scalable SVG rendering that is compatible with many browsers and stylable with CSS,
+  * animations built into the core,
+  * support for a distributed runtime with a diagram client and a model server,
+  * a fast, reactive client architecure implemented in TypeScript,
+  * a Java-based server architecture,
+  * configuration via dependency injection,
+  * integration with [Xtext, the Language Server Protocol and Theia](https://github.com/theia-ide/theia-sprotty-example) that can be run as rich-client as well as in the browser..
+  
+  [sprotty demo (youtube)](http://www.youtube.com/watch?v=IydM4l7WFKk)
+  
+  ![sprottyjs-Screen Shot 2018-03-28 at 2.22.23 AM.png](/:storage/0.srsydrcvl0k.png)
+  
+  ## Getting started
+  
+  ```bash
+  # clone the repo
+  git clone git@github.com:theia-ide/sprotty.git
+  
+  # build sprotty client and examples
+  cd sprotty/client
+  yarn
+  yarn examples:build
+  
+  # build and run the sprotty server
+  cd ../server
+  ./gradlew jettyRun 
+  
+  # point your web browser to localhost:8080
+  ```
+  
+  For further information please consult the [wiki](https://github.com/theia-ide/sprotty/wiki) or this [blog post](http://typefox.io/sprotty-a-web-based-diagramming-framework). The examples contained in this repository are available on a [demo page](http://sprotty-demo.typefox.io).
+'''
+tags: []
+isStarred: false
+isTrashed: false

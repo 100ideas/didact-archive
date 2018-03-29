@@ -1,0 +1,319 @@
+createdAt: "2018-03-07T21:20:38.886Z"
+updatedAt: "2018-03-16T08:27:06.236Z"
+type: "MARKDOWN_NOTE"
+folder: "d4855edc37196573049e"
+title: "2018-03-07 MST frozen examples"
+content: '''
+  # 2018-03-07 MST frozen examples
+  
+  ### Tomas Petricek & The Gamma
+  
+  > **Future work**
+  >
+  > *Making programming with data easier*
+  >
+  > *Learning from spreadsheets*
+  >
+  > *Understanding programmer interactions*
+  >
+  > *Handling joins and data cleaning*
+  >
+  > *Read, analyse and visualize!*
+  
+  - [The Gamma](https://thegamma.net/) : Tools for open data-driven storytelling
+  - [blog](http://tomasp.net) - New ways of thinking in programming & working with data
+  - [tpetricek/Talks](https://github.com/tpetricek/Talks) · GitHub
+  - [@tomaspetricek](https://twitter.com/tomaspetricek) Twitter 
+  
+  
+  
+  [Talks/2018/type-provider-tricks](https://github.com/tpetricek/Talks/blob/master/2018/type-provider-tricks/slides/slides/index.md#behind-the-scenes):
+  **Structure of a type provider**
+  ```
+  Context $L$ maps names to definitions and nested contexts
+  
+  $ L(C) = {\\color{mc}\\text{type}}~C(x:\\tau) = \\overline{m}, L' $
+  
+  Pivot provider takes schema and provides a class with context
+  
+  $ \\text{pivot}(F) = C, L $
+  ```
+  **JSON type provider**
+  *Generate class corresponding to a record shape*
+  (oh man I wish I could understand this)
+  ![eq2.png](/:storage/0.yyvc3gksw1r.png)
+  
+  
+  ---
+  
+  ### fsharp JsonProvider JSON structure
+  [FSharp.Data/JsonValue.fs](https://github.com/fsharp/FSharp.Data/blob/master/src/Json/JsonValue.fs) · GitHub
+  ```fsharp
+  /// Represents a JSON value. Large numbers that do not fit in the
+  /// Decimal type are represented using the Float case, while
+  /// smaller numbers are represented as decimals to avoid precision loss.
+  [<RequireQualifiedAccess>]
+  [<StructuredFormatDisplay("{_Print}")>]
+  type JsonValue =
+    | String of string
+    | Number of decimal
+    | Float of float
+    | Record of properties:(string * JsonValue)[]
+    | Array of elements:JsonValue[]
+    | Boolean of bool
+    | Null  
+  ```
+  
+  ---
+  
+  
+  **reminder:** (See Swagger notes in [2017-03-06 Cerebral, JSONapi Swagger MST dynamic form](f70fba107a4da9d4b456-f0ac65a1ce7ceb559c99))
+  
+  ### Mobx-State-Tree frozen & other tidbits from issue tracker
+  
+  [types.object · Issue #125 · mobxjs/mobx-state-tree · GitHub](https://github.com/mobxjs/mobx-state-tree/issues/125)
+  
+  [How to integrate an observable object into MST · Issue #161 · mobxjs/mobx-state-tree · GitHub](https://github.com/mobxjs/mobx-state-tree/issues/161)
+  
+  [How to declare an Object property? · Issue #166 · mobxjs/mobx-state-tree · GitHub](https://github.com/mobxjs/mobx-state-tree/issues/166)
+  
+  [Q: how to operate a dynamic object · Issue #453 · mobxjs/mobx-state-tree · GitHub](https://github.com/mobxjs/mobx-state-tree/issues/453)
+  - <a href='https://goo.gl/LTyPyq'>MobX State Tree Playground:  dynamic object w/ frozen</a>
+    
+  [change type of tree node · Issue #617 · mobxjs/mobx-state-tree · GitHub](https://github.com/mobxjs/mobx-state-tree/issues/617)
+  
+  [Using mobx-react-router with mobx-state-tree · Issue #665 · mobxjs/mobx-state-tree · GitHub](https://github.com/mobxjs/mobx-state-tree/issues/665)
+  
+  [computed identifiers based on baseModel for spreadsheet · Issue #200 · mobxjs/mobx-state-tree · GitHub](https://github.com/mobxjs/mobx-state-tree/issues/200)
+  
+  [Orders of magnitude slower than mobx · Issue #440 · mobxjs/mobx-state-tree · GitHub](https://github.com/mobxjs/mobx-state-tree/issues/440#issuecomment-367037470)
+    - [MST vs mobx spreadsheet test - CodeSandbox](https://codesandbox.io/s/z69n18nr24)
+  
+  ```js
+  import { types, unprotect } from "mobx-state-tree"
+  import { inspect } from "mobx-state-tree-playground"
+  
+  const TreeNode = types.map(
+      types.union(
+          types.late(() => TreeNode),
+          types.frozen
+      )
+  )
+  
+  const store = TreeNode.create({})
+  inspect(store)
+  unprotect(store)
+  
+  store.set("foo", TreeNode.create())
+  store.set("bar", 1)
+  store.get("foo").set("hello", "world")
+  ```
+  
+  ### forms
+  
+  [GitHub - naguvan/react-mst-form: Library for generating React forms from JSON schema using the react, material-ui, mobx and mobx-state-tree.](https://github.com/naguvan/react-mst-form)
+  
+  
+  ---
+  
+  [forge-rcdb.nodejs/rcdb.models.json at master · Autodesk-Forge/forge-rcdb.nodejs · GitHub](https://github.com/Autodesk-Forge/forge-rcdb.nodejs/blob/master/resources/db/dev/rcdb.models.json)
+  
+  ```json
+      "_id" : ObjectId("57efaead77c8eb0a560ef465"), 
+      "name" : "Car Seat", 
+      "env" : "Local", 
+      "layout" : {
+          "type" : "flexLayoutRight", 
+          "rightFlex" : 0.35
+      }, 
+      "model" : {
+          "path" : "resources/models/dev/seat/0.svf", 
+          "name" : "Car Seat"
+      }, 
+      "dynamicExtensions" : [
+          {
+              "id" : "Viewing.Extension.ExtensionManager", 
+              "options" : {
+                  "materialCategories" : [
+                      "Material"
+                  ], 
+                  "properties" : [
+                      "Component Category", 
+                      "Date Created", 
+                      "Density", 
+                      "Description", 
+                      "Designer", 
+                      "Material", 
+                      "Part Number"
+                  ], 
+                  "parentControl" : "modelTools", 
+                  "extensions" : [
+                      {
+                          "id" : "Viewing.Extension.Database.Table", 
+                          "enabled" : true, 
+                          "options" : {
+                              "displayIndex" : NumberInt(0), 
+                              "apiUrl" : "/api/materials", 
+                              "flex" : 0.4
+                          }
+                      }, 
+                      {
+                          "id" : "Viewing.Extension.Database.CostBreakdown", 
+                          "enabled" : true, 
+                          "options" : {
+                              "displayIndex" : NumberInt(1)
+                          }
+                      }, 
+                      {
+                          "id" : "Viewing.Extension.ViewerProperties", 
+                          "enabled" : true
+                      }, 
+                      {
+                          "id" : "Viewing.Extension.VisualReport", 
+                          "enabled" : true
+                      }, 
+                      {
+                          "id" : "Viewing.Extension.Markup3D", 
+                          "enabled" : true
+                      }, 
+                      {
+                          "id" : "Viewing.Extension.Transform", 
+                          "enabled" : true
+                      }
+                  ]
+              }
+          }
+      ]
+  }
+  ```
+  
+  some deps from package.json:
+  
+  - json2csv
+  - forge-apis
+  - dat-gui
+  - react-dropzone
+  - react-json-view
+  - react-dropzone
+  - react-contenteditable
+  - react-table
+  
+  
+  ```json
+    { 
+      "forge-apis": "^0.4.1",
+      "helmet": "3.9.0",
+      "json2csv": "3.11.5",
+      "memoizee": "^0.4.3",
+      "moment": "2.19.3",
+      "mongodb": "2.2.31",
+      "multer": "^1.3.0",
+      "mz": "^2.6.0",
+      "node-zip": "1.1.1",
+      "oauth": "0.9.15",
+      "qrcode.react": "0.7.2",
+      "react-json-view": "1.13.3",
+      "react-s-alert": "1.3.2",
+      "react-tooltip": "3.4.0",
+      "rimraf": "^2.6.1",
+      "rmdir": "^1.2.0",
+      "sanitize-html": "1.15.0",
+      "socket.io": "2.0.3",
+      "superagent": "3.7.0",
+      "util": "^0.10.3"
+    },
+    "devDependencies": {
+      "@tweenjs/tween.js": "17.1.1",
+      "autoprefixer": "^6.7.5",
+      "babel-cli": "^6.23.0",
+      "babel-eslint": "^6.0.0-beta.6",
+      "babel-loader": "^6.3.2",
+      "babel-plugin-istanbul": "^2.0.1",
+      "babel-plugin-transform-decorators-legacy": "1.3.4",
+      "babel-plugin-transform-react-constant-elements": "^6.9.1",
+      "babel-plugin-transform-react-inline-elements": "^6.8.0",
+      "babel-plugin-transform-react-remove-prop-types": "^0.2.10",
+      "babel-plugin-transform-runtime": "^6.15.0",
+      "babel-preset-env": "^1.6.0",
+      "babel-preset-react": "^6.11.1",
+      "babel-register": "^6.14.0",
+      "bluebird": "^3.5.0",
+      "bootstrap": "^3.3.7",
+      "bootstrap-sass": "^3.3.7",
+      "bootstrap-webpack": "0.0.6",
+      "brotli-webpack-plugin": "^0.5.0",
+      "chalk": "^1.1.3",
+      "classnames": "^2.2.5",
+      "clean-webpack-plugin": "^0.1.14",
+      "compression-webpack-plugin": "^1.0.0",
+      "cross-env": "^3.1.4",
+      "css-loader": "^0.16.0",
+      "cssnano": "^3.10.0",
+      "d3": "3.5.16",
+      "d3pie": "0.1.9",
+      "dat-gui": "0.5.0",
+      "dompurify": "^0.8.5",
+      "dragula": "^3.7.2",
+      "easing-js": "^1.0.1",
+      "es5-shim": "~4.1.10",
+      "eslint": "^2.13.1",
+      "eslint-plugin-jsx-a11y": "^2.2.3",
+      "eslint-plugin-react": "^6.10.0",
+      "exports-loader": "^0.6.4",
+      "fetch-inject": "^1.7.0",
+      "file-loader": "^0.10.1",
+      "font-awesome": "^4.7.0",
+      "font-awesome-webpack": "0.0.5-beta.2",
+      "glob": "7.1.2",
+      "hig-react": "^0.28.24",
+      "html-webpack-plugin": "^2.28.0",
+      "imagemin-webpack-plugin": "1.5.2",
+      "imports-loader": "^0.7.1",
+      "inline-manifest-webpack-plugin": "^3.0.1",
+      "install": "^0.8.7",
+      "intl": "^1.2.5",
+      "jquery": "^3.1.1",
+      "jquery-jsonview": "1.2.3",
+      "jquery-nice-select": "^1.1.0",
+      "less": "^2.7.3",
+      "lockr": "^0.8.4",
+      "lodash": "^4.17.4",
+      "node-sass": "^3.13.1",
+      "npm": "^4.4.4",
+      "optimize-js-plugin": "0.0.4",
+      "postcss-loader": "^1.3.2",
+      "precss": "^1.4.0",
+      "progress-bar-webpack-plugin": "^1.9.3",
+      "prop-types": "15.5.7",
+      "raw-loader": "^0.5.1",
+      "rc-slider": "^6.3.1",
+      "rc-tooltip": "^3.7.0",
+      "react": "15.6.2",
+      "react-bootstrap": "^0.30.7",
+      "react-bootstrap-table": "4.0.6",
+      "react-color": "^2.13.8",
+      "react-contenteditable": "^2.0.2",
+      "react-copy-to-clipboard": "5.0.1",
+      "react-dom": "15.6.2",
+      "react-dragula": "^1.1.17",
+      "react-dropzone": "3.13.1",
+      "react-grid-layout": "^0.14.3",
+      "react-hot-loader": "3.0.0-beta.7",
+      "react-intl": "^2.3.0",
+      "react-measure": "2.0.2",
+      "react-modal": "2.3.2",
+      "react-paginate": "^4.4.4",
+      "react-redux": "^5.0.3",
+      "react-reflex": "^2.1.3",
+      "react-router": "^3.0.2",
+      "react-router-bootstrap": "^0.23.1",
+      "react-select": "^1.0.0-rc.3",
+      "react-spinkit": "2.1.2",
+      "react-stars": "2.2.4",
+      "react-table": "^6.6.0"
+    }
+    ```
+'''
+tags: []
+isStarred: false
+isTrashed: false

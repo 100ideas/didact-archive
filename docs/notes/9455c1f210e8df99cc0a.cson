@@ -34,11 +34,36 @@ content: '''
   
   [Slate Markdown by Spectrum](https://slate-markdown.spectrum.chat/)
   
+  ### Prosemirror
+  
+  [PubPub Editor](https://pubpub.github.io/pubpub-editor/) A stand alone, extensible WSIWYG editor based on ProseMirror - includes *File* componenent
+  
+  
   ### forms & schemas
+  
+  [react redux form](http://davidkpiano.github.io/react-redux-form/) A versatile, fast, and intuitive library for creating complex and performant forms in React and Redux.
+  - here it is! [survive.js implement react kanban app w/ flux (alt.js)](https://survivejs.com/react/implementing-kanban/react-and-flux/)
+    - see safari bookmarks `2017.10 didact/frontend`
+  - http://devguides.io/redux/
+  - http://blog.theodo.fr/2016/03/getting-started-with-react-redux-and-immutable-a-test-driven-tutorial-part-1/
+  - https://hackernoon.com/redux-step-by-step-a-simple-and-robust-workflow-for-real-life-apps-1fdf7df46092
+  - https://egghead.io/courses/getting-started-with-redux
+  - https://egghead.io/courses/building-react-applications-with-idiomatic-redux
+  - [react redux form tutorial](http://davidkpiano.github.io/react-redux-form/docs/guides/quickstart.html)
+  
+  [kinto formbuilder](https://github.com/kinto/formbuilder) Create your own forms and surveys, get your data back.
+  
+  [liform-react](https://limenius.github.io/liform-react/) Liform is an extensible form generator for React (and ReactNative) from JSON schema. It uses the fantastic Redux Form, so you can manage your state in a sane way with Redux, and the awesome ajv library for validation.
+  
+  [JSON Editor](https://github.com/josdejong/jsoneditor) is a web-based tool to view, edit, format, and validate JSON. It has various modes such as a tree editor, a code editor, and a plain text editor.
   
   [mozilla-services/react-jsonschema-form: A React component for building Web forms from JSON Schema.](https://github.com/mozilla-services/react-jsonschema-form#file-widgets)
   
   [react-jsonschema-form playground](https://mozilla-services.github.io/react-jsonschema-form/)
+  
+  [formik](https://github.com/jaredpalmer/formik) Build forms in React, without the tears 😭 https://npm.im/formik
+  
+  [jdorn/json-editor](https://github.com/jdorn/json-editor) - JSON Schema Based Editor
   
   [Data Hopping: From SQL to GraphQL to JSON – codeburst](https://codeburst.io/data-hopping-from-sql-to-graphql-to-json-a6ddb4ff34bf)
   
@@ -101,4 +126,4 @@ tags: []
 isStarred: false
 isTrashed: false
 createdAt: "2017-10-17T21:47:03.803Z"
-updatedAt: "2017-10-17T21:49:33.057Z"
+updatedAt: "2018-01-30T08:42:52.283Z"

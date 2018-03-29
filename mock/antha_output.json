@@ -1,0 +1,27 @@
+{
+  "ID": "b8b28845-1bae-40d9-ae2e-c453ce975b58",
+  "BlockID": {
+    "Value": ""
+  },
+  "DaughterID": "",
+  "ParentID": "d64bca65-b34b-4c62-8319-cdae79d5af29:water:NOPLATE:NOWELL:0.000 :ul(085d3f62-5354-4e46-ba26-4fc8cc3d74f1)_a17bfe18-affa-422c-b8eb-afa962e53795:tartrazine:NOPLATE:NOWELL:30.000:ul(a3f1efe6-b502-48c6-bf84-60f8c0f0ea43)",
+  "Inst": "",
+  "Order": 0,
+  "CName": "water+tartrazine",
+  "Type": 1,
+  "Vol": 150,
+  "Conc": 0,
+  "Vunit": "ul",
+  "Cunit": "g/l",
+  "Tvol": 0,
+  "Smax": 0,
+  "Visc": 0,
+  "StockConcentration": 0,
+  "Extra": {
+    "Generation": 1,
+    "INSTANCE": true,
+    "IsSample": false
+  },
+  "Loc": "",
+  "Destination": ""
+}

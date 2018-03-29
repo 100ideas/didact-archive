@@ -1,0 +1,73 @@
+createdAt: "2018-03-28T09:08:38.155Z"
+updatedAt: "2018-03-28T09:12:27.529Z"
+type: "MARKDOWN_NOTE"
+folder: "d4855edc37196573049e"
+title: "talk.observablehq: Is the notebook a unit of presentation, a unit of interactive development, or a unit of reuse?"
+content: '''
+  # talk.observablehq: Is the notebook a unit of presentation, a unit of interactive development, or a unit of reuse?
+  
+  [Is the notebook a unit of presentation, a unit of interactive development, or a unit of reuse? - Site Feedback - The Observable Forum](https://talk.observablehq.com/t/is-the-notebook-a-unit-of-presentation-a-unit-of-interactive-development-or-a-unit-of-reuse/510)
+  
+  [**kelleyvanevert**](/u/kelleyvanevert) 2018-03-16 14:04:16 UTC <span itemprop="position">\\#1</span>
+  
+  In my recent notebook creations, such as [this one](https://beta.observablehq.com/@kelleyvanevert/3d-l-systems), the way I structure my notebook seems to revolve around two conflicting interests, which boil down to the question what it is that cells, functions in cells, resp. notebooks, aim to be.
+  
+  The two interests are:
+  
+  1.  I want my notebook to look nice, or be readable, or display a line of thought or constructions. Let’s call this the **notebook as a presentation** view. The structure of the notebook follows the reasoning of presentation. This means that I’ll put helpers at the bottom, and wrap displaying functions, and nicely present multiple of these, side by side for example, admist running text.
+  2.  **Interactive development**. Here, it’s not the notebook reader, but me, that is working out a concept from scratch. Everyone knows that interactive development starts with good concrete examples, not a full set of wrapped helper functions.
+  
+  The two are conflicting because the first one wants to wrap up code in helper functions as quick as possible, and hide them out of sight, typically structuring the directed graph of cell dependency from the bottom of the notebook to the top; whilst the second one works in the opposite direction.
+  
+  Note that the two interests should not be seen as distinct use cases. I believe Observable mainly flourishes on the fact that the two interests coincide in a single use case, combining the “knowledge/example bank presentation style” of [bl.ocks.org](http://bl.ocks.org) with interactivity and accessibility (and (!) composability/reusability, i.e. combining elements of other people’s / your own previous notebooks).
+  
+  I think the problem is best described as a problem of understanding what a ‘cell’ and a ‘notebook’ are supposed to be. Let’s say there are two units. A *unit of development*, which should ideally be interactive, and a *unit of presentation*. In (1), a notebook plays the role of a unit of presentation, and a cell plays the role of a unit of development. (I.e., development is not interactive.) In (2), the notebook is the unit of development (as it was envisioned), but to then present a completed unit, a fork or new notebook is required. *The unit of presentation can’t be the unit of development.*
+  
+  We could also speak of the *unit of reusability*. In (1), it’s cells, in (2), it’s notebooks, essentially.
+  
+  You apparently can’t have your cake and eat it as well, because if you wrap your function in a helper cell (which includes moving all relevant cell-dependencies to function arguments, etc.), you can’t interactively develop it anymore; but if you don’t, you can’t use the same notebook to subsequently present it well.
+  
+  So what are ways of ‘really fixing this’ ? (Instead of just letting the community decide on creative ways to use `viewof`'s and other methods to deal with the issue, or just requiring a mixed-interest notebook writer to continually un- and re-wrap cells, as I often tend to do, or wore, have notebook writers automatically choose one of two interests).
+  
+  **Structural change**  
+  You could drastically change the structure of the website, so that notebooks contain a small hierarchy of units of development, and the entire thing itself the unit of presentation. This is far from ideal in that it’s quite complicated, and must be harder to read, etc, but conceptually a reasonable way out. Suppose you’ve defined a number of reactive cells, and a ‘conclusion’-like cell that e.g. displays a nice svg animatable:
+  
+      cells a, b, c... including a few sliders (or other inputs), say d, e, f.
+      'conclusion' cell z
+  
+  Then, you’d select all these, and say 'I want these to form a sub-notebook, represented at this level by a function `fn`, where `z` is it’s output, and let’s have it take `d`, `e`, `f` as arguments, ‘overwriting’ what previously were sliders. Then, you’d be able to use the sub-notebook as a helper function to make a nice presentation; but still be able to interactively develop it as well (focusing into the sub-notebook, where `d`, `e`, `f` are still just sliders.
+  
+  (See attached image, below.)
+  
+  **Conceptual change**  
+  Instead of a radical change like the above, you could change of conceptual ‘feeling’ of what it is to be a notebook. Emphasize the reusability of an entire notebook, so that a notebook is not always a full presentation, but could amount to just a ‘helper’. This is of course already the case, where you can `import { d, e, f } from 'helpernotebook'`. But because it takes a ‘fork’ or ‘create new notebook’ step, and switches to a new screen, etc., it doesn’t really feel like you’re just making a helper function. What if a single presentation requires a whole slew of helpers? I don’t think people feel at ease just creating notebooks as helpers, but have a mental image of a notebook as a unit of presentation. (I do, at least) Also, notebooks are presented in a grid on the homepage, emphasizing their presentation-ness. If notebooks are to be just helpers, small helper libraries, etc, they would require a more ‘systematic’ downplayed organization. Maybe the site would benefit from distinguishing ‘presentation’ notebooks from e.g. ‘gadgets’.
+  
+  ------------------------------------------------------------------------
+  
+  ‘Sub-notebook’
+  
+  ![51f17aee11db4afc2890fb93fc41bc0fa29e3035.png](/:storage/0.fhe7kcnz4ab.png)
+  
+  ------------------------------------------------------------------------
+  
+   [**jashkenas**](/u/jashkenas) 2018-03-23 18:15:32 UTC <span itemprop="position">\\#2</span>
+  
+  <a href="/u/kelleyvanevert" class="mention">@kelleyvanevert</a>,
+  
+  This is easily my favorite post on the forums. Please don’t take our slow response time as indifference — rather, there’s a lot to chew on here, and a lot to think about.
+  
+  In my opinion, **presentation** and **interactive development** are two sides of the same coin. Perhaps we should be thinking about notebooks as a medium for **essays** (or **computational essays**), in the Montaignean sense of the term: They’re attempts at figuring out an argument — both for yourself and for other readers — by writing it out.
+  
+  So, I’d be reluctant to start introducing further divisions in the UI between *raw ideas* notebooks and *for publication* notebooks. In the same way that Observable is useful because you immediately see the value or `viewof` materialization of the code that you’re writing — it’s useful for notebooks to have the editing form as close to the reading form as is practicable.
+  
+  We do need to make it easier to move groups of cells around, format them differently, and perhaps hide them. But in general, instead of constantly wrapping and unwrapping cells in helper functions, I’d encourage keeping your cells as-small-as-possible atomic units of code, and composing them in different ways to build your notebooks.
+  
+  I agree that we should do better to demonstrate “notebooks as helpers”, with more built-in notebooks of self-documenting helper functions that can be useful in other projects. It’s a simple example, but I particularly appreciated [this color helper](https://beta.observablehq.com/@dsemenov/gmd-colors) from the other day.
+  
+  Anyhow, lots of food for thought; there’s much more to discuss here. Thanks for posting this!
+  
+  
+'''
+tags: []
+isStarred: false
+isTrashed: false

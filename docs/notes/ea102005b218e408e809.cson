@@ -1,0 +1,33 @@
+createdAt: "2018-02-08T10:46:33.066Z"
+updatedAt: "2018-02-09T02:16:42.113Z"
+type: "MARKDOWN_NOTE"
+folder: "d4855edc37196573049e"
+title: "2017 MobX talk - Weststrate"
+content: '''
+  # 2017 MobX talk - Weststrate
+  
+  ## Complexity: Divide and Conquer!
+  https://www.youtube.com/watch?v=3J9EJrvqOiM
+  
+  ![mobx.jpg](/:storage/0.2nwthbvjnw6.jpg)
+  
+  ### mobx notes
+  
+  - put transition logic (actions?) in store code
+  - put "user flows" in store
+    - tests too: `expect` statements
+  
+  
+  ### code examples
+  - [react-mobx-shop bookstore](https://github.com/mweststrate/react-mobx-shop)
+    - ["bookStore"](https://github.com/mweststrate/react-mobx-shop/commit/a4a60222f1fd87ba0738ba6680392c7a9b53e30e#diff-228e525806eb1d80eff01dc7d5a59eeaR1) example store
+  - github.com/mobxjs/mobx-examples - atomic examples of mobx features
+  - [Simple MobX TodoList](https://codesandbox.io/s/2vmzpM0wK)
+  - [Functional MobX TodoList](https://codesandbox.io/s/3lLYYA1jn)
+  - [MobX + React JSFiddle](https://jsfiddle.net/mweststrate/wgbe4guu/)
+  - [mobx css flexbox editor](https://limichange.github.io/flex-editor/)
+  - 
+'''
+tags: []
+isStarred: false
+isTrashed: false

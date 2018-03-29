@@ -1,0 +1,54 @@
+createdAt: "2018-03-22T00:07:28.947Z"
+updatedAt: "2018-03-22T00:25:01.874Z"
+type: "MARKDOWN_NOTE"
+folder: "d4855edc37196573049e"
+title: "2018-03-21 thi.ng umbrella noob; fish funcs"
+content: '''
+  # 2018-03-21 thi.ng umbrella noob; fish funcs
+  
+  ## umbrella-noob: learning thi.ng's `hdom` framework by example
+  
+  
+  
+  
+  ## organized some fish funcs
+  
+  been working on some `fish` functions on and off over the last weeks
+  
+  `lscolors.fish` 
+  - list terminal colors
+  
+  `lsfuncs.fish` 
+  - list USER DEFINED fish functions
+  - or list ALL functions
+  - learned how to use `fish_opt` & `argparse` to parse command-line options
+    - [fish: Commands](http://fishshell.com/docs/current/commands.html#fish_opt)
+    - `printf` with fish `set_color` for nice colors
+  
+  `desc.fish:`
+  - hacked script to parse `--description` from fish function
+  - **note**: uses more(?) idiomatic `functions --details -v` mode
+    - see source for deets
+  
+  `finfo.fish:`
+  - WIP generate custom `.whatis` "database" file for user-defined fish functions
+    - should support `apropos <user-fish-function>`
+    - needs to be regenerated when adding new funcs
+    - not working b/c looks like would have to patch C src code of fish function that autosuggests completions... not obvious from looking at source
+  - goal: user-defined fish function descriptions show up when `tab`-completing on command line
+    - double-tab tap opens extended completion pager
+  
+  `jupyterlab.fish:`
+  - start & reattach to jupyter lab w/ pydna ijavascript docker container
+  
+  `jupyterlab-anon.fish:`
+  - start anonymous (`-rm`) `juputer lab` docker image linked to current directory
+  
+  `athenapdf.fish`:
+  - Simple, Docker-powered PDF conversions - just supply URL, get pdf in local directory
+  
+  also hacked `~/.config/bin/safari-readinglist`: python script that parses Safari's reading list `.plist` file and updates `~/Dropbox/Safari-ReadingList.md`. see `~/dev/etc/ReadingListCatcher/`
+'''
+tags: []
+isStarred: false
+isTrashed: false

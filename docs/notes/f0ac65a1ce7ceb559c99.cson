@@ -1,0 +1,160 @@
+createdAt: "2018-03-07T09:40:44.248Z"
+updatedAt: "2018-03-16T08:27:02.429Z"
+type: "MARKDOWN_NOTE"
+folder: "d4855edc37196573049e"
+title: "2018-03-06 Cerebral, JSONapi Swagger MST dynamic form"
+content: '''
+  # 2018-03-06 Cerebral, JSONapi Swagger MST dynamic form 
+  
+  ### Cerebral TodoMVC - arbitrary state modification test
+  
+  - open up cerebral debugger `localhost: 8686`
+  - [Cerebral TodoMVC MST mutate test - CodeSandbox](https://codesandbox.io/s/x9q6p7pl9p)
+  
+  docs:
+  - [Business logic as a data structure](https://www.jsblog.io/articles/christianalfoni/business_logic_as_a_data_structure)
+  - [CerebralJS](https://dev.to/reflog/cerebraljs)
+  - [Cerebral Docs](https://cerebraljs.com/docs/introduction/providers.html)
+  - [Cerebral Docs](https://cerebraljs.com/docs/addons/mobx-state-tree.html)
+  
+  
+  ### JSON-api standard - data model serialization inspiration
+  - [JSON API — Latest Specification (v1.0)](http://jsonapi.org/format/#document-compound-documents)
+  - [khanhhaduc/mst-jsonapi-store: JSON API Store for mobx-state-tree](https://github.com/khanhhaduc/mst-jsonapi-store)
+  - [olosegres/jsona: Data formatter that creates simplified objects from JSON or stored reduxObject, creates JSON from the same simplified objects (in according with JSON API specification)](https://github.com/olosegres/jsona)
+  - [infinum/mobx-jsonapi-store: JSON API Store for MobX](https://github.com/infinum/mobx-jsonapi-store)
+  - [nickryall/mobx-jsonapi: Mobx Collection and Model classes for working with a JSON:API compliant API.](https://github.com/nickryall/mobx-jsonapi)
+  ```js
+  {
+    "data": [{
+      "type": "articles",
+      "id": "1",
+      "attributes": {
+        "title": "JSON API paints my bikeshed!"
+      },
+      "links": {
+        "self": "http://example.com/articles/1"
+      },
+      "relationships": {
+        "author": {
+          "links": {
+            "self": "http://example.com/articles/1/relationships/author",
+            "related": "http://example.com/articles/1/author"
+          },
+          "data": { "type": "people", "id": "9" }
+        },
+        "comments": {
+          "links": {
+            "self": "http://example.com/articles/1/relationships/comments",
+            "related": "http://example.com/articles/1/comments"
+          },
+          "data": [
+            { "type": "comments", "id": "5" },
+            { "type": "comments", "id": "12" }
+          ]
+        }
+      }
+    }],
+    "included": [{
+      "type": "people",
+      "id": "9",
+      "attributes": {
+        "first-name": "Dan",
+        "last-name": "Gebhardt",
+        "twitter": "dgeb"
+      },
+      "links": {
+        "self": "http://example.com/people/9"
+      }
+    }, {
+      "type": "comments",
+      "id": "5",
+      "attributes": {
+        "body": "First!"
+  
+  // truncated ....
+  ```
+  
+  
+  ### Spreadsheet repos
+  
+  - [mobx-kickstart-excel/src](https://github.com/eliyadgar/mobx-kickstart-excel)
+  - ![Screen Shot 2018-03-07 at 12.47.45 PM.png](/:storage/0.vk9anythv89.png)
+  - `/Users/macowell/dev/didact-repos/repos/mobx-kickstart-excel`
+  
+  
+  
+  ### Graphstore: tiny observable graph store based on mobx
+  [GraphStore · GraphStore](https://graphstore.js.org/docs/introduction.html)
+  
+  "GraphStore is a tiny, observable, persistent real-time store based on MobX.
+  
+  It allows one to use JavaScript objects as application state, ensuring it keeps up to date and in sync across the application and with the backend persistent store or database.
+  
+  ```
+  let user = stores.UserStore.getbyId(userId)};
+  user.name = 'GraphStore Expert';  // updates the database in real time
+  ```
+  
+  It is "graph-aware", so when accesing the property userPosts on the document user, GraphStore automatically uses the user_id field to traverse to the UserPosts collection and finds the Posts associated with that user. It figures all this out from the schema.
+  
+  ```
+  let posts = user.userPosts;  // actually generates a database observable subscription
+  ```
+  
+  It's a bit like table joins and foreign keys, but for modern graph databases. And it just works with no API."
+  
+  
+  ###
+  [naguvan/react-mst-form](https://github.com/naguvan/react-mst-form)
+  "React forms from JSON schema using the react, material-ui, mobx and mobx-state-tree"
+  
+  seems to use the right mst `frozen` Type to allow for arbitrary object creation... [react-mst-form/Object.ts at master · naguvan/react-mst-form · GitHub](https://github.com/naguvan/react-mst-form/blob/master/src/models/Type/Object/Object.ts#L22)
+  
+  
+  ### forms-for + mobx
+  
+  - [Introducing form-for. ReactJS Forms Made Easy – Hacker Noon](https://hackernoon.com/introducing-form-for-reactjs-forms-made-easy-d82d9f5026be)
+  - [GitHub - form-for/demo: Form-for demo](https://github.com/form-for/demo)
+  
+  shows how to use file drag-n-drop w/ mst: [GitHub - form-for/demo: Form-for demo](https://github.com/form-for/demo)
+  
+  ### frypan-knockout-mobx-grid
+  [GitHub - nathanboktae/frypan-knockout-grid at mobx](https://github.com/nathanboktae/frypan-knockout-grid/tree/mobx)
+  - checkout mobx branch
+  "Dynamic column discovery - an array of objects (or async data function) is all you need to get started"
+  
+  ### react-json-grid
+  [GitHub - jason-henriksen/react-json-grid: grid editor for JSON objects, arrays or any javascript data](https://github.com/jason-henriksen/react-json-grid)
+  
+  
+  ### swagger mobx-state-tree dynamic forms app
+  
+  [tylerlong/swagger-data-entry-app](https://github.com/tylerlong/swagger-data-entry-app)
+  - uses mobx-state-tree
+  - ui form fields appear/disappear
+    - [swagger-data-entry-app/SwaggerFields.js](https://github.com/tylerlong/swagger-data-entry-app/blob/master/src/web/components/SwaggerFields.js#L17)
+    - fields are hooked to the appropriate MST model () in [swagger-data-entry-app/OptionalFields.js](https://github.com/tylerlong/swagger-data-entry-app/blob/master/src/web/components/common/OptionalFields.js#L45) [RequiredFields.js](https://github.com/tylerlong/swagger-data-entry-app/blob/master/src/web/components/common/RequiredFields.js#L32)
+      - this file also has logic to determine the name of the field dynamically
+    - *I think* form state is hooked up to MST in [swagger-data-entry-app/Schema.js](https://github.com/tylerlong/swagger-data-entry-app/blob/master/src/web/components/definitions/Schema.js#L44) using 
+  
+      ```
+        if (this.form.name) {
+          getParent(getParent(schema)).renameDefinition(name, this.form.name)
+         }
+      ```
+      In fact, it looks like one of the few MST functions used in react components to hook them to MST is `{getParent} from 'mobx-state-tree'`.
+      
+      Also `update()` & `replace()` from [swagger-data-entry-app/index.js](https://github.com/tylerlong/swagger-data-entry-app/blob/master/src/web/utils/index.js)
+  
+  
+  Hmmm. I think swagger app might be too complicated to figure out.
+  
+  
+  # Reactotron
+  [GitHub - infinitered/reactotron: A desktop app for inspecting your React JS and React Native projects. macOS, Linux, and Windows.](https://github.com/infinitered/reactotron)
+  
+'''
+tags: []
+isStarred: false
+isTrashed: false

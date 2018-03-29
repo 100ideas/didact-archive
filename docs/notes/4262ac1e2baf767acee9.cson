@@ -1,0 +1,114 @@
+createdAt: "2018-03-06T11:25:45.840Z"
+updatedAt: "2018-03-16T08:26:57.925Z"
+type: "MARKDOWN_NOTE"
+folder: "d4855edc37196573049e"
+title: "2018-03-05 Slogan, notes on why data model is hard"
+content: '''
+  # 2018-03-05 Slogan, notes on why data model is hard
+  
+  thought of a cool slogan:
+  
+  "*the human operating system*"
+  
+  currently struggling with the notebook datamodel. Nested trees? state included literally, normalized, or as references? How does a child node reference data outputs (state) from ancestor nodes? Are data outputs in one branch of the tree hidden by default from other branches?
+  
+  document
+  - nodes[][]
+    - node
+    - narrative
+    - operation*
+    - inputs (other nodes; consumed data, by ref or normalized?)
+      - tree of operations; the "program" 
+      - instance data; the "execution" context & log of side effects
+    - outputs
+      - children nodes?
+      - or more data?
+  
+  A nested tree structure in appealing in the abstract but not obvious how to link nodes & data state together.
+  
+  might be helpful to try to design it two ways: 
+  - start with rough JSON-serializable definition
+  - when that gets hard, rethink in terms of a more object-oriented dynamic datastructure
+  
+  `slate.js` has a similar architecture, might be possible to get inspiration from source code or even build on top of it.
+  
+  it's interesting that mobx-state-tree (MST) is designed to provide both immutable tree redux-style interface to state as well as a more "object-oriented" interface.
+  
+  MST looks like it could be a good fit, but the shape of MST `stores` are supposed to be defined using 
+  [combinations of primitive`types`](https://github.com/mobxjs/mobx-state-tree/#trees-types-and-state). If using MST to implement a spreadsheet, how would the `cell` MST store be defined if `cell`s could contain not just `types.number` content but also say an embedded image or even a nested table?
+  
+  
+  > Each node in the tree is described by two things: Its type (the shape of the thing) and its data (the state it is currently in).
+  
+  ```javascript
+  import {types} from "mobx-state-tree"
+  
+  // declaring the shape of a node with the type `Todo`
+  const Todo = types.model({
+      title: types.string
+  })
+  
+  // creating a tree based on the "Todo" type, with initial data:
+  const coffeeTodo = Todo.create({
+      title: "Get coffee"
+  })
+  
+  const TodoStore = types
+      .model("TodoStore", {                             // 1
+          loaded: types.boolean             // primitive type
+          endpoint: "http://localhost",                 // 3
+          todos: types.array(Todo),         // "complex" type
+          selectedTodo: types.reference(Todo)           // 5
+      })
+      .views(self => {
+          return {
+              get completedTodos() {                    // 6
+                  return self.todos.filter(t => t.done)
+              },
+              findTodosByUser(user) {                   // 7
+                  return self.todos.filter(t => t.assignee === user)
+              }
+          };
+      })
+      .actions(self => {
+          return {
+              addTodo(title) {
+                  self.todos.push({
+                      id: Math.random(),
+                      title
+                  })
+              }
+          };
+      })
+  ```
+  
+  ### types.frozen
+  
+  Hmmmmm.
+  
+  > [Frozen](https://github.com/mobxjs/mobx-state-tree/blob/master/API.md#typesfrozen) can be used to store any value that is serializable in itself (that is valid JSON).
+  Frozen values need to be immutable or treated as if immutable.
+  > 
+  > Values stored in frozen will snapshotted as-is by MST, and internal changes will not be tracked.
+  > 
+  > This is useful to store complex, but immutable values like vectors etc. It can form a powerful bridge to parts of your application that should be immutable, or that assume data to be immutable.
+  
+  **Examples**
+  
+  ```javascript
+  const GameCharacter = types.model({
+    name: string,
+    location: types.frozen
+  })
+  
+  const hero = GameCharacter.create({
+    name: "Mario",
+    location: { x: 7, y: 4 }
+  })
+  
+  hero.location = { x: 10, y: 2 } // OK
+  hero.location.x = 7 // Not ok!
+'''
+tags: []
+isStarred: false
+isTrashed: false
