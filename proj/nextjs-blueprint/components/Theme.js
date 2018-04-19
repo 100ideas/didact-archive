@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Head from 'next/head';
 import PropTypes from "prop-types";
 import hoistStatics from "hoist-non-react-statics";
+import "../static/flex.scss";
 
 const withTheme = (Component) => {
   class WithTheme extends React.Component {
@@ -44,9 +45,9 @@ class ThemeProvider extends Component {
           <title>{this.props.title}</title>
           <meta name="viewport" content="initial-scale=1.0, width=device-width" />
           <link rel="stylesheet" href="/static/normalize.css" />
-          <link rel="stylesheet" href="/static/blueprintjs/dist/blueprint.css" />
-          <link rel="stylesheet" href="static/blueprintjs-labs/dist/blueprint-labs.css" />
-          <link rel="stylesheet" href="/static/flex.css" />
+          <link rel="stylesheet" href="/_next/static/flex.css" />
+          {/* <link rel="stylesheet" href="/static/blueprintjs/dist/blueprint.css" /> */}
+          {/* <link rel="stylesheet" href="/static/flex.css" /> */}
         </Head>
 
         <main className="wrap container-fluid">

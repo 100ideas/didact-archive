@@ -7,16 +7,16 @@ import {
   MenuItem,
   FocusStyleManager
 } from "@blueprintjs/core";
-import { Omnibox } from "@blueprintjs/labs";
+import { Omnibar } from "@blueprintjs/select";
 import classNames from "classnames";
 
 
 @HotkeysTarget
-class OmniboxUI extends Component {
+class omnibarUI extends Component {
 
   state = {
     showConsole: false,
-    showOmnibox: false,
+    showomnibar: false,
   };
 
   componentDidMount() {
@@ -59,12 +59,12 @@ class OmniboxUI extends Component {
     return results;
   }
 
-  handleOmniboxToggle() {
-    return this.setState({ showOmnibox: !this.state.showOmnibox });
+  handleomnibarToggle() {
+    return this.setState({ showomnibar: !this.state.showomnibar });
   }
 
-  handleOmniboxItemSelect(item) {
-    this.handleOmniboxToggle();
+  handleomnibarItemSelect(item) {
+    this.handleomnibarToggle();
     if(!item) {
       return this.setState({searchQuery: item}, () => {
         this.props.history.replace("/search");
@@ -121,8 +121,8 @@ class OmniboxUI extends Component {
           allowInInput={true}
           global={true}
           combo="meta + k"
-          label="Show Omnibox"
-          onKeyDown={this.handleOmniboxToggle.bind(this)}
+          label="Show omnibar"
+          onKeyDown={this.handleomnibarToggle.bind(this)}
         />
 
       </Hotkeys>
@@ -131,14 +131,14 @@ class OmniboxUI extends Component {
 
   render () {
     return (
-      <Omnibox
-        className="center pt-omnibox pt-overlay-content"
+      <omnibar
+        className="center pt-omnibar pt-overlay-content"
         noResults={<MenuItem disabled text="No results." />}
-        isOpen={this.state.showOmnibox}
+        isOpen={this.state.showomnibar}
         itemRenderer={this.renderOmniItem}
-        onClose={this.handleOmniboxToggle.bind(this)}
+        onClose={this.handleomnibarToggle.bind(this)}
         itemListPredicate={this.filterOmniList.bind(this)}
-        onItemSelect={this.handleOmniboxItemSelect.bind(this)}
+        onItemSelect={this.handleomnibarItemSelect.bind(this)}
         resetOnSelect={true}
         resetOnClose={true}
         items={[
@@ -184,4 +184,4 @@ class OmniboxUI extends Component {
   }
 }
 
-export default OmniboxUI;
+export default omnibarUI;

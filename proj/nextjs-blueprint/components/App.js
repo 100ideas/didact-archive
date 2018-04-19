@@ -2,7 +2,7 @@ import React, {Component} from 'react';
 import Link from 'next/link';
 import Head from 'next/head';
 import { ThemeProvider, NAV_COLLAPSE } from "./Theme";
-import Omnibox from "./Omnibox"
+import Omnibar from "./Omnibar"
 
 // export default ({ children, title }) => (
 
@@ -29,7 +29,7 @@ class App extends Component {
         theme={this.state.isDarkTheme ? "dark" : "light"}
         title="nextjs+blueprint"
       >
-        <Omnibox/>
+        <Omnibar/>
         { this.props.children }
       </ThemeProvider>
     )
