@@ -1,0 +1,4093 @@
+createdAt: "2018-04-04T10:26:49.295Z"
+updatedAt: "2018-04-04T22:24:25.378Z"
+type: "SNIPPET_NOTE"
+folder: "d4855edc37196573049e"
+title: "Operation DAGs: transcriptic, slate.js, prosemirror, antha"
+description: "Operation DAGs: transcriptic, slate.js, prosemirror, antha"
+snippets: [
+  {
+    name: "english.py"
+    mode: "Python"
+    content: '''
+      # source:
+      # https://github.com/transcriptic/transcriptic/master/transcriptic/english.py
+      
+      from __future__ import print_function
+      from builtins import str
+      from builtins import object
+      import json
+      import ast
+      import re
+      from collections import OrderedDict
+      
+      
+      PLURAL_UNITS = ["microliter", "nanoliter", "milliliter", "second", "minute",
+                      "hour", "g", "nanometer"]
+      
+      TEMP_DICT = {"cold_20": "-20 degrees celsius",
+                   "cold_80": "-80 degrees celsius",
+                   "warm_37": "37 degrees celsius", "cold_4": "4 degrees celsius",
+                   "warm_30": "30 degrees celsius", "ambient": "room temperature"}
+      
+      
+      class AutoprotocolParser(object):
+      
+          def __init__(self, protocol_obj, ctx=None, parsed_output=None):
+              self.ctx = ctx
+              self.resource = dict()
+              self.parse(protocol_obj)
+      
+          def parse(self, obj):
+              self.object_list = []
+              self.instructions = obj['instructions']
+      
+              parsed_output = []
+              for i in self.instructions:
+                  try:
+                      output = getattr(self, i['op'])(i)
+                      parsed_output.extend(output) if isinstance(
+                          output, list) else parsed_output.append(output)
+                  except AttributeError:
+                      parsed_output.append("[Unknown instruction]")
+      
+              self.parsed_output = parsed_output
+              for i, p in enumerate(parsed_output):
+                  print("%d. %s" % (i + 1, p))
+      
+          def job_tree(self):
+              """
+              A Job Tree visualizes the instructions of a protocol in a hierarchical
+              structure based on container dependency to help human readers with manual
+              execution. Its construction utilizes the algorithm below, as well as the
+              Node object class (to store relational information) at the bottom of this 
+              script.
+      
+              Example Usage:
+                  .. code-block:: python
+      
+                      p = Protocol()
+      
+                      bacterial_sample = p.ref("bacteria", None, "micro-1.5", discard=True)
+                      test_plate = p.ref("test_plate", None, "96-flat", storage="cold_4")
+      
+                      p.dispense_full_plate(test_plate, "lb-broth-noAB", "50:microliter")
+                      w = 0
+                      amt = 1
+                      while amt < 20:
+                          p.transfer(bacterial_sample.well(
+                              0), test_plate.well(w), "%d:microliter" % amt)
+                          amt += 2
+                          w += 1
+      
+                      pjsonString = json.dumps(p.as_dict(), indent=2)
+                      pjson = json.loads(pjsonString)
+                      parser_instance = english.AutoprotocolParser(pjson)
+                      parser_instance.job_tree()
+      
+                      Output:
+                      1
+                      +---2
+                      3
+                      +---4
+                      5
+                      +---6
+                      7
+                      +---8
+                      9
+                      +---10
+                      11
+                      +---12
+      
+      
+              Variables 
+              ---------
+              steps: list
+                  deep list of objects per instruction/step;
+                  is primary information job tree is built from
+              nodes: list
+                  list of node objects
+              proto_forest: list
+                  list of lists grouped by connected nodes
+              forest: list
+                  list of nested dictionaries, depicting parent-children relations
+              forest_list: list
+                  list of nested lists, depticting parent-children relations 
+              """
+      
+              # 1. Enforce depth of 1 for steps
+              def depth_one(steps):
+                  depth_one = []
+                  for step in steps:
+                      if type(step) is list:
+                          if type(step[0]) is list:
+                              depth_one.append(step[0])
+                          else:
+                              depth_one.append(step)
+                      else:
+                          depth_one.append([step])
+                  return depth_one
+      
+              # 2. Convert steps to list of node objects (0,1,2,3...)
+              def assign_nodes(steps):
+                  nodes = [i for i in range(len(steps))]
+                  objects = list(
+                      set([elem for sublist in steps for elem in sublist]))
+      
+                  # checks for multiple src and dst objects -- added when looking for
+                  # mutiples
+                  split_objects = []
+                  for obj in objects:
+                      if len(obj) > 1:
+                          new_objs = obj.split(", ")
+                          split_objects.extend(new_objs)
+                      else:
+                          split_objects.append(obj)
+                  objects = split_objects
+                  del(split_objects)
+      
+                  # populate with leafless trees (Node objects, no edges)
+                  for node in nodes:
+                      nodes[node] = Node(str(node))
+      
+                  # search for leafy trees
+                  for obj in objects:
+      
+                      # accounts for multiple drc/dst objects
+                      leaves = []
+                      for i, sublist in enumerate(steps):
+                          for string in sublist:
+                              if string.count(',') > 0:
+                                  if obj in string:
+                                      leaves.append(i)
+                              else:
+                                  if obj in sublist:
+                                      leaves.append(i)
+                      leaves = sorted(list(set(leaves)))
+      
+                      if len(leaves) > 1:
+                          viable_edges = []
+      
+                          # compute cross-product
+                          for leaf1 in leaves:
+                              for leaf2 in leaves:
+                                  if str(leaf1) != str(leaf2) and sorted((leaf1, leaf2)) not in viable_edges:
+                                      viable_edges.append(sorted((leaf1, leaf2)))
+      
+                          # form edge networks
+                          for edge in viable_edges:
+                              n1, n2 = nodes[edge[0]], nodes[edge[1]]
+                              n1.add_edge(n2)
+                              n2.add_edge(n1)
+                              nodes[int(n1.name)], nodes[int(n2.name)] = n1, n2
+                  return nodes
+      
+              # 3. Determine number of trees and regroup by connected nodes
+              def connected_nodes(nodes):
+                  proto_trees = []
+                  nodes = set(nodes)
+      
+                  while nodes:
+                      n = nodes.pop()
+                      group = {n}
+                      queue = [n]
+                      while queue:
+                          n = queue.pop(0)
+                          neighbors = n.edges
+                          neighbors.difference_update(group)
+                          nodes.difference_update(neighbors)
+                          group.update(neighbors)
+                          queue.extend(neighbors)
+                      proto_trees.append(group)
+                  return proto_trees
+      
+              # 4. Convert nodes to nested dictionary of parent-children relations
+              # i.e. adding depth -- also deals with tree-node sorting and path
+              # optimization
+              def build_tree_dict(trees, steps):
+                  # node sorting in trees
+                  sorted_trees = []
+                  for tree in trees:
+                      sorted_trees.append(
+                          sorted(tree, key=lambda x: int(x.name)))
+      
+                  # retrieve values of the nodes (the protocol's containers)
+                  # for each tree ... may want to use dictionary eventually
+                  all_values = []
+                  for tree in sorted_trees:
+                      values = [steps[int(node.name)] for node in tree]
+                      all_values.append(values)
+      
+                  # create relational tuples:
+                  all_digs = []
+                  singles = []
+                  dst_potentials = []
+                  for tree_idx in range(len(sorted_trees)):
+                      edge_flag = False
+                      tree_digs = []
+                      for node_idx in range(len(sorted_trees[tree_idx])):
+      
+                          # digs: directed graph vectors
+                          digs = []
+                          dst_nodes = []
+                          node_values = all_values[tree_idx][node_idx]
+                          src_node = str(sorted_trees[tree_idx][node_idx].name)
+      
+                          # ACTION ON MULTIPLE OBJECTS (E.G. TRANSFER FROM SRC -> DST
+                          # WELLS)
+                          # Outcome space: {1-1, 1-many, many-1, many-many}
+                          if len(node_values) == 2:
+                              # single destination (x-1)
+                              if node_values[1].count(",") == 0:
+                                  dst_nodes = [i for i, sublist in enumerate(
+                                      steps) if node_values[1] == sublist[0]]
+                              # multiple destinations (x-many)
+                              elif node_values[1].count(",") > 0:
+                                  dst_nodes = []
+                                  for dst in node_values[1].replace(", ", ""):
+                                      for i, sublist in enumerate(steps):
+                                          if i not in dst_nodes and dst == sublist[0]:
+                                              dst_nodes.append(i)
+      
+                          # ACTION ON A SINGLE OBJECT
+                          elif len(node_values) == 1:
+                              dst_nodes = [i for i, sublist in enumerate(
+                                  steps) if node_values[0] == sublist[0]]
+      
+                          # Constructing tuples in (child, parent) format
+                          for dst_node in dst_nodes:
+                              dig = (int(dst_node), int(src_node))
+                              digs.append(dig)
+      
+                          # else: an edge-case for dictionaries constructed with no edges
+                          # initiates tree separation via flag
+                          if digs != []:
+                              edge_flag = False
+                              tree_digs.append(digs)
+                          else:
+                              edge_flag = True
+                              digs = [(int(src_node), int(src_node))]
+                              tree_digs.append(digs)
+      
+                      # digraph cycle detection: avoids cycles by overlooking set
+                      # repeats
+                      true_tree_digs = []
+                      for digs in tree_digs:
+                          for dig in digs:
+                              if tuple(sorted(dig, reverse=True)) not in true_tree_digs:
+                                  true_tree_digs.append(
+                                      tuple(sorted(dig, reverse=True)))
+      
+                      # edge-case for dictionaries constructed with no edges
+                      if true_tree_digs != [] and edge_flag == False:
+                          all_digs.append(true_tree_digs)
+                      elif edge_flag == True:
+                          all_digs.extend(tree_digs)
+      
+                  # Enforces forest ordering
+                  all_digs = sorted(all_digs, key=lambda x: x[0])
+      
+                  # job tree traversal to find all paths:
+                  forest = []
+                  for digs_set in all_digs:
+      
+                      # pass 1: initialize nodes dictionary
+                      nodes = OrderedDict()
+                      for tup in digs_set:
+                          id, parent_id = tup
+                          # ensure all nodes accounted for
+                          nodes[id] = OrderedDict({'id': id})
+                          nodes[parent_id] = OrderedDict({'id': parent_id})
+      
+                      # pass 2: create trees and parent-child relations
+                      for tup in digs_set:
+                          id, parent_id = tup
+                          node = nodes[id]
+                          # links node to its parent
+                          if id != parent_id:
+                              # add new_node as child to parent
+                              parent = nodes[parent_id]
+                              if not 'children' in parent:
+                                  # ensure parent has a 'children' field
+                                  parent['children'] = []
+                              children = parent['children']
+                              children.append(node)
+      
+                      desired_tree_idx = sorted(list(nodes.keys()))[0]
+                      forest.append(nodes[desired_tree_idx])
+                  return forest
+      
+              # 5. Convert dictionary-stored nodes to unflattened, nested list of
+              # parent-children relations
+              def dict_to_list(forest):
+                  forest_list = []
+                  for tree in forest:
+                      tString = str(json.dumps(tree))
+                      tString = tString.replace('"id": ', "").replace('"children": ', "").replace(
+                          '[{', "[").replace('}]', "]").replace('{', "[").replace('}', "]")
+      
+                      # find largest repeated branch (if applicable)
+                      # maybe think about using prefix trees or SIMD extensions for better
+                      # efficiency
+                      x, y, length, match = 0, 0, 0, ''
+                      for y in range(len(tString)):
+                          for x in range(len(tString)):
+                              substring = tString[y:x]
+                              if len(list(re.finditer(re.escape(substring), tString))) > 1 and len(substring) > length:
+                                  match = substring
+                                  length = len(substring)
+      
+                      # checking for legitimate branch repeat
+                      if "[" in match and "]" in match:
+                          hits = []
+                          index = 0
+                          if len(tString) > 3:
+                              while index < len(tString):
+                                  index = tString.find(str(match), index)
+                                  if index == -1:
+                                      break
+                                  hits.append(index)
+                                  index += len(match)
+      
+                          # find all locations of repeated branch and remove
+                          if len(hits) > 1:
+                              for start_loc in hits[1:]:
+                                  tString = tString[:start_loc] + \\
+                                      tString[start_loc:].replace(match, "]", 1)
+      
+                      # increment all numbers in string to match the protocol
+                      newString = ""
+                      numString = ""
+                      for el in tString:
+                          if el.isdigit():  # build number
+                              numString += el
+                          else:
+                              if numString != "":  # convert it to int and reinstantaite numString
+                                  numString = str(int(numString) + 1)
+                              newString += numString
+                              newString += el
+                              numString = ""
+                      tString = newString
+                      del newString
+      
+                      forest_list.append(ast.literal_eval(tString))
+                  return forest_list
+      
+              # 6. Print job tree(s)
+              def print_tree(lst, level=0):
+                  print('    ' * (level - 1) + '+---' * (level > 0) + str(lst[0]))
+                  for l in lst[1:]:
+                      if type(l) is list:
+                          print_tree(l, level + 1)
+                      else:
+                          print('    ' * level + '+---' + l)
+      
+              # 1
+              steps = depth_one(self.object_list)
+              # 2
+              nodes = assign_nodes(steps)
+              # 3
+              proto_forest = connected_nodes(nodes)
+              # 4
+              forest = build_tree_dict(proto_forest, steps)
+              # 5
+              self.forest_list = dict_to_list(forest)
+              # 6
+              print("\\n" + "A suggested Job Tree based on container dependency: \\n")
+              for tree_list in self.forest_list:
+                  print_tree(tree_list)
+      
+          def absorbance(self, opts):
+              self.object_list.append([opts['object']])
+              return ("Measure absorbance at %s for %s of plate %s" %
+                      (self.unit(opts['wavelength']),
+                       self.well_list(opts['wells']),
+                       opts['object']))
+      
+          def acoustic_transfer(self, opts):
+              transfers = []
+              for t in opts['groups'][0]['transfer']:
+                  transfers.append("Acoustic transfer %s from %s to %s" %
+                                   (self.unit(t["volume"]), t["from"], t["to"]))
+                  self.object_list.append([t["from"], t["to"]])
+              return transfers
+      
+          def autopick(self, opts):
+              picks = []
+              for i, g in enumerate(opts['groups']):
+                  picks.extend(["Pick %s colonies from %s %s: %s to %s, %s" %
+                                (len(g["to"]), len(g['from']),
+                                 ("well" if len(g['from']) is 1 else "wells"),
+                                 self.well_list(g['from']),
+                                 self.well_list(g['to']),
+                                 ("data saved at '%s'" % opts["dataref"]
+                                  if i is 0 else "analyzed with previous"))])
+                  self.object_list.append([g["from"], g["to"]])
+              return picks
+      
+          def cover(self, opts):
+              self.object_list.append([opts['object']])
+              return "Cover %s with a %s lid" % (opts['object'], opts['lid'])
+      
+          def dispense(self, opts):
+              self.object_list.append([opts['object']])
+              unique_vol = []
+              for col in opts['columns']:
+                  vol = self.unit(col["volume"])
+                  if vol not in unique_vol:
+                      unique_vol.append(vol)
+              if "reagent" in opts:
+                  reagent = opts["reagent"]
+              elif "resource_id" in opts:
+                  resource_id = opts["resource_id"]
+                  if resource_id in self.resource:
+                      reagent = self.resource[resource_id]
+                  elif self.ctx:
+                      resource = self.ctx.obj.api.resources(resource_id)
+                      if resource["results"]:
+                          reagent = resource["results"][0]["name"].lower()
+                          self.resource[resource_id] = reagent
+                      else:
+                          reagent = "resource with resource ID %s" % resource_id
+                  else:
+                      reagent = "resource with resource ID %s" % resource_id
+              else:
+                  reagent = "unknown"
+      
+              if len(opts['columns']) == 12 and len(unique_vol) == 1:
+                  return "Dispense %s of %s to the full plate of %s" % (
+                      unique_vol[0], reagent, opts['object'])
+              else:
+                  return "Dispense corresponding amounts of %s to %d column(s) of %s" % (
+                      reagent, len(opts['columns']), opts['object'])
+      
+          def flash_freeze(self, opts):
+              self.object_list.append([opts['object']])
+              return ("Flash freeze %s for %s" %
+                      (opts['object'], self.unit(opts['duration'])))
+      
+          def fluorescence(self, opts):
+              self.object_list.append([opts['object']])
+              return ("Read fluorescence of %s of plate %s at excitation wavelength "
+                      "%s and emission wavelength %s" %
+                      (self.well_list(opts['wells']),
+                       opts['object'],
+                       self.unit(opts['excitation']),
+                       self.unit(opts['emission'])))
+      
+          def gel_separate(self, opts):
+              self.object_list.append([opts['matrix']])
+              return ("Perform gel electrophoresis using "
+                      "a %s agarose gel for %s" % (opts['matrix'].split(',')[1][:-1],
+                                                   self.unit(opts['duration'])))
+      
+          def gel_purify(self, opts):
+              self.object_list.append([opts['matrix']])
+              unique_bl = []
+              for ext in opts['extract']:
+                  bl = ext["band_size_range"]
+                  if bl not in unique_bl:
+                      unique_bl.append(bl)
+              for i in range(len(unique_bl)):
+                  unique_bl[i] = str(unique_bl[i]['min_bp']) + \\
+                      "-" + str(unique_bl[i]['max_bp'])
+      
+              if len(unique_bl) <= 3:
+                  return "Perform gel purification on the %s agarose gel with band range(s) %s" % (
+                      opts['matrix'].split(',')[1][:-1], ', '.join(unique_bl))
+              else:
+                  return "Perform gel purification on the %s agarose gel with %s band ranges" % (
+                      opts['matrix'].split(',')[1][:-1], len(unique_bl))
+      
+          def incubate(self, opts):
+              self.object_list.append([opts['object']])
+              shaking = " (shaking)" if opts['shaking'] else ""
+              return "Incubate %s at %s for %s%s" % (opts['object'],
+                                                     TEMP_DICT[opts['where']],
+                                                     self.unit(opts['duration']),
+                                                     shaking)
+      
+          def image_plate(self, opts):
+              self.object_list.append([opts['object']])
+              return "Take an image of %s" % opts['object']
+      
+          def luminescence(self, opts):
+              self.object_list.append([opts['object']])
+              return ("Read luminescence of %s of plate %s" %
+                      (self.well_list(opts['wells']), opts['object']))
+      
+          def oligosynthesize(self, opts):
+              self.object_list.append([o['destination'] for o in opts['oligos']])
+              return (["Oligosynthesize sequence '%s' into '%s'" %
+                       (o['sequence'], o['destination']) for o in opts['oligos']])
+      
+          def provision(self, opts):
+              self.object_list.append([self.platename(t['well'])
+                                       for t in opts['to']])
+              resource_id = opts["resource_id"]
+              if resource_id in self.resource:
+                  reagent = self.resource[resource_id]
+              elif self.ctx:
+                  resource = self.ctx.obj.api.resources(resource_id)
+                  if resource["results"]:
+                      reagent = resource["results"][0]["name"].lower()
+                      self.resource[resource_id] = reagent
+                  else:
+                      reagent = "resource with resource ID %s" % resource_id
+              else:
+                  reagent = "resource with resource ID %s" % resource_id
+              provisions = []
+              for t in opts['to']:
+                  provisions.append("Provision %s of %s to well %s of container %s" %
+                                    (self.unit(t['volume']), reagent,
+                                     self.well(t['well']), self.platename(t['well'])
+                                     ))
+              return provisions
+      
+          def sanger_sequence(self, opts):
+              self.object_list.append([opts['object']])
+              seq = "Sanger sequence %s of plate %s" % (
+                  self.well_list(opts['wells']), opts['object'])
+              if opts['type'] == "standard":
+                  return seq
+              elif opts['type'] == "rca":
+                  return seq + " with %s" % self.platename(opts['primer'])
+      
+          def illumina_sequence(self, opts):
+              unique_wells = self.get_unique_wells(opts['lanes'])
+              unique_plates = self.get_unique_plates(unique_wells)
+              self.object_list.append(unique_plates)
+      
+              if len(unique_plates) == 1 and len(unique_wells) <= 3:
+                  seq = "Illumina sequence wells %s" % (", ".join(unique_wells))
+              elif len(unique_plates) > 1 and len(unique_plates) <= 3:
+                  seq = "Illumina sequence the corresponding wells of plates %s" % ", ".join(
+                      unique_plates[0])
+              else:
+                  seq = "Illumina sequence the corresponding wells of %s plates" % len(
+                      unique_wells)
+      
+              return seq + " with library size %s" % opts['library_size']
+      
+          def flow_analyze(self, opts):
+              wells = []
+              for sample in opts['samples']:
+                  if sample['well'] not in wells:
+                      wells.append(sample['well'])
+              self.object_list.append([self.platename(w) for w in wells])
+      
+              return "Perform flow cytometry on %s with the respective FSC and SSC channel parameters" % ", ".join(wells)
+      
+          def seal(self, opts):
+              self.object_list.append([opts["object"]])
+              return "Seal %s (%s)" % (opts['object'], opts['type'])
+      
+          def spin(self, opts):
+              self.object_list.append([opts["object"]])
+              return ("Spin %s for %s at %s" %
+                      (opts['object'], self.unit(opts['duration']),
+                       self.unit(opts['acceleration'])))
+      
+          def spread(self, opts):
+              self.object_list.append(
+                  [self.well(opts['from']), self.well(opts['to'])])
+              return ["Spread %s of bacteria from well %s of %s "
+                      "to well %s of agar plate %s" %
+                      (opts['volume'], self.well(opts['from']),
+                       self.platename(opts['from']), self.well(opts['to']),
+                       self.platename(opts['to']))]
+      
+          def stamp(self, opts):
+              stamps = []
+              for g in opts['groups']:
+                  for pip in g:
+                      if pip == "transfer":
+                          stamps.extend(["Stamp %s from source origin %s "
+                                         "to destination origin %s %s (%s)" %
+                                         (self.unit(p['volume']),
+                                          p['from'],
+                                          p['to'],
+                                          ("with the same set of tips as previous" if
+                                           (len(g[pip]) > 1 and i > 0) else ""),
+                                          ("%s rows x %s columns" %
+                                           (g['shape']['rows'],
+                                            g['shape']['columns']))
+                                          ) for i, p in enumerate(g[pip])
+                                         ])
+                          from_objs = str([self.platename(p['from'])
+                                           for i, p in enumerate(g[pip])])
+                          to_objs = str([self.platename(p['to'])
+                                         for i, p in enumerate(g[pip])])
+                          self.object_list.append([from_objs, to_objs])
+              return stamps
+      
+          def thermocycle(self, opts):
+              self.object_list.append([opts["object"]])
+              return "Thermocycle %s" % opts['object']
+      
+          def pipette(self, opts):
+              pipettes = []
+              for g in opts['groups']:
+                  for pip in g:
+                      if pip == "mix":
+                          for m in g[pip]:
+                              pipettes.append("Mix well %s of plate %s %d times "
+                                              "with a volume of %s" %
+                                              (self.well(m['well']),
+                                               self.platename(
+                                                  m['well']),
+                                                  m['repetitions'],
+                                                  self.unit(m['volume']))
+                                              )
+                              self.object_list.append(self.platename(m['well']))
+                      elif pip == "transfer":
+                          pipettes.extend(["Transfer %s from %s "
+                                           "to %s %s" %
+                                           (self.unit(p['volume']),
+                                            p['from'],
+                                            p['to'],
+                                            ("with the same tip as previous" if (
+                                                len(g[pip]) > 1 and i > 0) else "")
+                                            ) for i, p in enumerate(g[pip])
+                                           ])
+      
+                          from_objs = str([self.platename(p['from'])
+                                           for i, p in enumerate(g[pip])])
+                          to_objs = str([self.platename(p['to'])
+                                         for i, p in enumerate(g[pip])])
+                          self.object_list.append([from_objs, to_objs])
+                      elif pip == "distribute":
+                          pipettes.append("Distribute from %s into %s" %
+                                          (g[pip]['from'],
+                                           self.well_list([d['well'] for
+                                                           d in g[pip]['to']], 20)))
+                          self.object_list.append(
+                              [g[pip]['from'], g[pip]['to'][0]['well']])
+                      elif pip == "consolidate":
+                          pipettes.append("Consolidate %s into %s" %
+                                          (self.well_list([c['well'] for c in
+                                                           g[pip]['from']], 20),
+                                           g[pip]['to']))
+                          self.object_list.append(
+                              [g[pip]['from'][0]['well'], g[pip]['to']])
+              return pipettes
+      
+          def magnetic_transfer(self, opts):
+              specific_op = list(opts['groups'][0][0].keys())[0]
+              specs_dict = opts['groups'][0][0][specific_op]
+              self.object_list.append([specs_dict["object"]])
+              seq = "Magnetically %s %s" % (specific_op, specs_dict["object"])
+      
+              if specific_op == "dry":
+                  return seq + " for %s" % self.unit(specs_dict["duration"])
+              elif specific_op == "incubate":
+                  return seq + " for %s with a tip position of %s" % (
+                      self.unit(specs_dict["duration"]), specs_dict["tip_position"])
+              elif specific_op == "collect":
+                  return seq + " beads for %s cycles with a pause duration of %s" % (
+                      specs_dict["cycles"], self.unit(specs_dict["pause_duration"]))
+              elif specific_op == "release" or "mix":
+                  return seq + " beads for %s at an amplitude of %s" % (
+                      self.unit(specs_dict["duration"]), specs_dict["amplitude"])
+      
+          def measure_volume(self, opts):
+              unique_plates = self.get_unique_plates(opts['object'])
+              self.object_list.append(unique_plates)
+      
+              if len(unique_plates) <= 3:
+                  return "Measure volume of %s wells from %s" % (
+                      len(opts['object']), ", ".join(unique_plates))
+              else:
+                  return "Measure volume of %s wells from the %s plates" % (
+                      len(opts['object']), len(unique_plates))
+      
+          def measure_mass(self, opts):
+              unique_plates = self.get_unique_plates(opts['object'])
+              self.object_list.append(unique_plates)
+              return "Measure mass of %s" % ", ".join(opts['object'])
+      
+          def measure_concentration(self, opts):
+              unique_plates = self.get_unique_plates(opts['object'])
+              self.object_list.append(unique_plates)
+              return "Measure concentration of %s %s source aliquots of %s" % (
+                  self.unit(opts['volume']), opts['measurement'], self.platename(opts['object'][0]))
+      
+          def uncover(self, opts):
+              self.object_list.append([opts["object"]])
+              return "Uncover %s" % opts['object']
+      
+          def unseal(self, opts):
+              self.object_list.append([opts["object"]])
+              return "Unseal %s" % opts['object']
+      
+          @staticmethod
+          def platename(ref):
+              return ref.split('/')[0]
+      
+          @staticmethod
+          def well(ref):
+              return ref.split('/')[1]
+      
+          @staticmethod
+          def get_unique_wells(list_of_wells):
+              unique_wells = []
+              for well in list_of_wells:
+                  w = well['object']
+                  if w not in unique_wells:
+                      unique_wells.append(w)
+              return unique_wells
+      
+          @staticmethod
+          def get_unique_plates(list_of_wells):
+              unique_plates = []
+              for well in list_of_wells:
+                  loc = well.find('/')
+                  if loc == -1:
+                      plate = well
+                  else:
+                      plate = well[:loc]
+      
+                  if plate not in unique_plates:
+                      unique_plates.append(plate)
+              return unique_plates
+      
+          @staticmethod
+          def well_list(wells, max_len=10):
+              well_list = "wells " + (', ').join(str(x) for x in wells)
+              if len(wells) > max_len:
+                  well_list = str(len(wells)) + " wells"
+              return well_list
+      
+          @staticmethod
+          def unit(u):
+              value = u.split(':')[0]
+              unit = u.split(':')[1]
+              return ("%s %s" % (value,
+                                 (unit + "s" if (float(value) > 1 and
+                                                 unit in PLURAL_UNITS) else unit))
+                      )
+      
+      
+      class Node(object):
+          """
+          A Node represents a Job Tree element that fulfils a broader child-parent 
+          relational structure. It contains relevant information on its relationships
+          in the form of edges. The job_tree algorithm above then constructs the 
+          actual hierachy of the aforementioned relational structure.
+      
+          Example Usage:
+              .. code-block:: python
+      
+              a = Node("a")
+              b = Node("b")
+              c = Node("c")
+              d = Node("d")
+              e = Node("e")
+              f = Node("f")      structure:
+              a.add_edge(b)          a
+              a.add_edge(c)         / \\
+              b.add_edge(d)        b   c
+              c.add_edge(e)       /   / \\
+              c.add_edge(f)      d   e   f
+      
+          Attributes
+          ----------
+          name: str
+              Name the Node object
+          edges: set
+              Set of edges that each node owns
+          """
+      
+          def __init__(self, name):
+              self.__name = name
+              self.__links = set()
+      
+          @property
+          def name(self):
+              return self.__name
+      
+          @property
+          def edges(self):
+              return set(self.__links)
+      
+          def add_edge(self, other):
+              self.__links.add(other)
+              other.__links.add(self)
+    '''
+  }
+  {
+    name: "robot-bagel_ssDNA_prep.ipynb"
+    mode: "Python"
+    content: '''
+      # example of terse real-world declaritive style in python autoprotocol
+      
+      # source:
+      # https://github.com/dacarlin/robot-bagel/blob/master/pilot/ssDNA_prep.ipynb
+      
+      import transcriptic
+      from autoprotocol import Protocol
+      p = Protocol()
+      
+      # containers
+      deep0 = p.ref( 'deep0', cont_type='96-deep', discard=True )
+      deep1 = p.ref( 'deep1', cont_type='96-deep', discard=True )
+      deep2 = p.ref( 'deep2', cont_type='96-deep', discard=True )
+      phage = p.ref( 'phage', cont_type='micro-2.0', discard=True ) 
+      kan = p.ref( 'kan', cont_type='micro-2.0', discard=True ) # 100X kanamycin 
+      salt_PEG = p.ref( 'salt_PEG', cont_type='96-deep', discard=True )
+      trash = p.ref( 'trash', cont_type='96-deep', discard=True )
+      pbs = p.ref( 'pbs', cont_type='96-deep', discard=True )
+      
+      # procedure 
+      p.dispense_full_plate( deep, 'lb-broth-50ug-ml-kanamycin', '1000:microliter' )
+      # pick into this plate
+      p.seal( deep0 )
+      p.incubate( deep0, "warm_37", "4:hour", shaking=True )
+      p.unseal( deep0 )
+      p.transfer( phage.well( 0 ), deep0.all_wells(), '1:microliter' ) # dilute phage to make this a 10 µL transfer
+      p.seal( deep0 )
+      p.incubate( deep0, "warm_37", "90:minute", shaking=True )
+      p.unseal( deep0 )
+      p.transfer( kan.well( 0 ), deep0.all_wells(), '10:microliter' ) 
+      p.seal( deep0 )
+      p.incubate( deep0, "warm_37", "16:hour", shaking=True )
+      p.spin( deep0, "1000:g", "20:minute")
+      p.stamp( deep0, deep1, '850:microliter' )
+      p.stamp( salt_PEG, deep1, '150:microliter' )
+      p.mix( deep1.all_wells(), volume='900:microliter' )
+      p.seal( deep1 )
+      p.incubate( deep1, 'cold_4', '60:minute' )
+      p.seal( deep1 )
+      p.spin( deep0, "1000:g", "40:minute" )
+      p.stamp( deep1, trash, '850:microliter' )
+      p.stamp( pbs, deep1, '100:microliter' )
+      p.mix( deep1.all_wells(), volume='90:microliter' )
+      # Spin in a microfuge for 1 minute to pellet any remaining cells, transfer supernatant to new tubes. 
+      p.stamp( salt_PEG, deep1, '160:microliter' )
+      p.mix( deep1.all_wells(), volume='190:microliter' )
+      p.incubate( deep1, 'ambient', '5:minute' )
+      p.spin( deep1, "1000:g", "40:minute" )
+      p.stamp( deep1, trash, '200:microliter' ) # remove last traces of supernatant 
+      p.stamp( pbs, deep1, '300:microliter' )
+      
+      # dna extraction (kingfisher or phenol-chloroform)
+      # If the mixture is acidic, DNA will precipitate into the organic phase while RNA remains in the aqueous phase due to DNA being more readily neutralised than RNA.
+      
+      #for plasmid in enumerate( plasmids ):
+          #transfer from plasmid to transformation_plate.well( i )
+          
+      # incubate transformation_plate for 5 min on ice
+      # transfer cells to all the plasmid wells
+      # thermocycle 
+      # add recovery media 
+      # incubate w/ shaking at 37 for 2 hour 
+      # get an agar plate w/ kanamycin 
+      # spread 
+      # incubate 16 hour upside down 
+      # get a deep 6 plate 
+      # fill w/ 3 mL TB
+      # pick into deep6
+      # grow deep6, 50 mL or 100 mL per plasmid + uridine?
+      # vigorous aeration at 37 C for till A600 < 0.05 
+      # add kan to 70 ug/mL 
+      # grow 14-18 hours at 37 C 
+      # pin culture at 4,000xg for 10 minutes. Transfer supernatant to a new tube and repeat spin
+      # Pipet the upper 90% of supernatant into a new tube. 
+      #To this supernatant, add a 0.2 volume of 2.5 M NaCl/20% PEG-8000. 
+      #Gently mix several times. 
+      #Incubate at 4°C for 60 minutes.
+      # Recover the phage by centrifugation at 12,000xg for 10 minutes. Carefully, decant supernatant and spin again briefly. 
+      # Gently, resuspend the pellet in 1.6 ml TBS. Aliquot into 2 microfuge tubes. 
+      # Spin in a microfuge for 1 minute to pellet any remaining cells, transfer supernatant to new tubes. 
+      # Add 160 µl of the 2.5 M NaCl/20% PEG-8000 solution to each, let sit at room temperature for 5 minutes, spin in a microfuge for 10 minutes at high speed. 
+      # Decant the supernatant, spin again briefly, remove last traces of supernatant with pipetman. 
+      # Resuspend each phage pellet in 300 µl TE. Extract with phenol (let sit 15 minutes before spinning), then phenol/chloroform (50/50: v/v; twice), and finally chloroform. Add 30 µl 2.5 M sodium acetate, pH 4.8 and 2-2.5 volumes ethanol to precipitate at -20°C for ~2 hours. 
+      # Suspend the dried pellets in 25-50 µl TE. Check yield by DNA gel. Helper phage genome (~8660bp) will appear in small amounts relative to phagemid DNA. Single-stranded DNA stains less brightly with ethidium bromide and migrates differently than double-stranded DNA. Yield should be >50 µg single-stranded phagemid for pUC origin vectors.  
+      
+      from json import dumps
+      print dumps( p.as_dict(), indent=None )
+    '''
+  }
+  {
+    name: "slate.models.operation.js"
+    mode: "JavaScript"
+    content: '''
+      // https://github.com/ianstormtaylor/slate/blob/master/packages/slate/src/models/operation.js
+      
+      import isPlainObject from 'is-plain-object'
+      import logger from 'slate-dev-logger'
+      import { List, Record } from 'immutable'
+      
+      import MODEL_TYPES from '../constants/model-types'
+      import OPERATION_ATTRIBUTES from '../constants/operation-attributes'
+      import Mark from './mark'
+      import Node from './node'
+      import Range from './range'
+      import Value from './value'
+      
+      /**
+       * Default properties.
+       *
+       * @type {Object}
+       */
+      
+      const DEFAULTS = {
+        length: undefined,
+        mark: undefined,
+        marks: undefined,
+        newPath: undefined,
+        node: undefined,
+        offset: undefined,
+        path: undefined,
+        position: undefined,
+        properties: undefined,
+        selection: undefined,
+        target: undefined,
+        text: undefined,
+        type: undefined,
+        value: undefined,
+      }
+      
+      /**
+       * Operation.
+       *
+       * @type {Operation}
+       */
+      
+      class Operation extends Record(DEFAULTS) {
+        /**
+         * Create a new `Operation` with `attrs`.
+         *
+         * @param {Object|Array|List|String|Operation} attrs
+         * @return {Operation}
+         */
+      
+        static create(attrs = {}) {
+          if (Operation.isOperation(attrs)) {
+            return attrs
+          }
+      
+          if (isPlainObject(attrs)) {
+            return Operation.fromJSON(attrs)
+          }
+      
+          throw new Error(
+            `\\`Operation.create\\` only accepts objects or operations, but you passed it: ${attrs}`
+          )
+        }
+      
+        /**
+         * Create a list of `Operations` from `elements`.
+         *
+         * @param {Array<Operation|Object>|List<Operation|Object>} elements
+         * @return {List<Operation>}
+         */
+      
+        static createList(elements = []) {
+          if (List.isList(elements) || Array.isArray(elements)) {
+            const list = new List(elements.map(Operation.create))
+            return list
+          }
+      
+          throw new Error(
+            `\\`Operation.createList\\` only accepts arrays or lists, but you passed it: ${elements}`
+          )
+        }
+      
+        /**
+         * Create a `Operation` from a JSON `object`.
+         *
+         * @param {Object|Operation} object
+         * @return {Operation}
+         */
+      
+        static fromJSON(object) {
+          if (Operation.isOperation(object)) {
+            return object
+          }
+      
+          const { type, value } = object
+          const ATTRIBUTES = OPERATION_ATTRIBUTES[type]
+          const attrs = { type }
+      
+          if (!ATTRIBUTES) {
+            throw new Error(
+              `\\`Operation.fromJSON\\` was passed an unrecognized operation type: "${type}"`
+            )
+          }
+      
+          for (const key of ATTRIBUTES) {
+            let v = object[key]
+      
+            if (v === undefined) {
+              // Skip keys for objects that should not be serialized, and are only used
+              // for providing the local-only invert behavior for the history stack.
+              if (key == 'document') continue
+              if (key == 'selection') continue
+              if (key == 'value') continue
+              if (key == 'node' && type != 'insert_node') continue
+      
+              throw new Error(
+                `\\`Operation.fromJSON\\` was passed a "${type}" operation without the required "${key}" attribute.`
+              )
+            }
+      
+            if (key == 'mark') {
+              v = Mark.create(v)
+            }
+      
+            if (key == 'marks' && v != null) {
+              v = Mark.createSet(v)
+            }
+      
+            if (key == 'node') {
+              v = Node.create(v)
+            }
+      
+            if (key == 'selection') {
+              v = Range.create(v)
+            }
+      
+            if (key == 'value') {
+              v = Value.create(v)
+            }
+      
+            if (key == 'properties' && type == 'merge_node') {
+              v = Node.createProperties(v)
+            }
+      
+            if (key == 'properties' && type == 'set_mark') {
+              v = Mark.createProperties(v)
+            }
+      
+            if (key == 'properties' && type == 'set_node') {
+              v = Node.createProperties(v)
+            }
+      
+            if (key == 'properties' && type == 'set_selection') {
+              const { anchorKey, focusKey, ...rest } = v
+              v = Range.createProperties(rest)
+      
+              if (anchorKey !== undefined) {
+                v.anchorPath =
+                  anchorKey === null ? null : value.document.getPath(anchorKey)
+              }
+      
+              if (focusKey !== undefined) {
+                v.focusPath =
+                  focusKey === null ? null : value.document.getPath(focusKey)
+              }
+            }
+      
+            if (key == 'properties' && type == 'set_value') {
+              v = Value.createProperties(v)
+            }
+      
+            if (key == 'properties' && type == 'split_node') {
+              v = Node.createProperties(v)
+            }
+      
+            attrs[key] = v
+          }
+      
+          const node = new Operation(attrs)
+          return node
+        }
+      
+        /**
+         * Alias `fromJS`.
+         */
+      
+        static fromJS = Operation.fromJSON
+      
+        /**
+         * Check if `any` is a `Operation`.
+         *
+         * @param {Any} any
+         * @return {Boolean}
+         */
+      
+        static isOperation(any) {
+          return !!(any && any[MODEL_TYPES.OPERATION])
+        }
+      
+        /**
+         * Check if `any` is a list of operations.
+         *
+         * @param {Any} any
+         * @return {Boolean}
+         */
+      
+        static isOperationList(any) {
+          return List.isList(any) && any.every(item => Operation.isOperation(item))
+        }
+      
+        /**
+         * Object.
+         *
+         * @return {String}
+         */
+      
+        get object() {
+          return 'operation'
+        }
+      
+        get kind() {
+          logger.deprecate(
+            'slate@0.32.0',
+            'The `kind` property of Slate objects has been renamed to `object`.'
+          )
+          return this.object
+        }
+      
+        /**
+         * Return a JSON representation of the operation.
+         *
+         * @param {Object} options
+         * @return {Object}
+         */
+      
+        toJSON(options = {}) {
+          const { object, type } = this
+          const json = { object, type }
+          const ATTRIBUTES = OPERATION_ATTRIBUTES[type]
+      
+          for (const key of ATTRIBUTES) {
+            let value = this[key]
+      
+            // Skip keys for objects that should not be serialized, and are only used
+            // for providing the local-only invert behavior for the history stack.
+            if (key == 'document') continue
+            if (key == 'selection') continue
+            if (key == 'value') continue
+            if (key == 'node' && type != 'insert_node') continue
+      
+            if (key == 'mark' || key == 'marks' || key == 'node') {
+              value = value.toJSON()
+            }
+      
+            if (key == 'properties' && type == 'merge_node') {
+              const v = {}
+              if ('data' in value) v.data = value.data.toJS()
+              if ('type' in value) v.type = value.type
+              value = v
+            }
+      
+            if (key == 'properties' && type == 'set_mark') {
+              const v = {}
+              if ('data' in value) v.data = value.data.toJS()
+              if ('type' in value) v.type = value.type
+              value = v
+            }
+      
+            if (key == 'properties' && type == 'set_node') {
+              const v = {}
+              if ('data' in value) v.data = value.data.toJS()
+              if ('isVoid' in value) v.isVoid = value.isVoid
+              if ('type' in value) v.type = value.type
+              value = v
+            }
+      
+            if (key == 'properties' && type == 'set_selection') {
+              const v = {}
+              if ('anchorOffset' in value) v.anchorOffset = value.anchorOffset
+              if ('anchorPath' in value) v.anchorPath = value.anchorPath
+              if ('focusOffset' in value) v.focusOffset = value.focusOffset
+              if ('focusPath' in value) v.focusPath = value.focusPath
+              if ('isBackward' in value) v.isBackward = value.isBackward
+              if ('isFocused' in value) v.isFocused = value.isFocused
+              if ('marks' in value)
+                v.marks = value.marks == null ? null : value.marks.toJSON()
+              value = v
+            }
+      
+            if (key == 'properties' && type == 'set_value') {
+              const v = {}
+              if ('data' in value) v.data = value.data.toJS()
+              if ('decorations' in value) v.decorations = value.decorations.toJS()
+              if ('schema' in value) v.schema = value.schema.toJS()
+              value = v
+            }
+      
+            if (key == 'properties' && type == 'split_node') {
+              const v = {}
+              if ('data' in value) v.data = value.data.toJS()
+              if ('type' in value) v.type = value.type
+              value = v
+            }
+      
+            json[key] = value
+          }
+      
+          return json
+        }
+      
+        /**
+         * Alias `toJS`.
+         */
+      
+        toJS(options) {
+          return this.toJSON(options)
+        }
+      }
+      
+      /**
+       * Attach a pseudo-symbol for type checking.
+       */
+      
+      Operation.prototype[MODEL_TYPES.OPERATION] = true
+      
+      /**
+       * Export.
+       *
+       * @type {Operation}
+       */
+      
+      export default Operation
+    '''
+  }
+  {
+    name: "eve.parser.parser.ts"
+    mode: "TypeScript"
+    content: '''
+      // https://github.com/witheve/Eve/blob/master/src/parser/parser.ts
+      
+      //-----------------------------------------------------------
+      // Parser
+      //-----------------------------------------------------------
+      
+      import * as commonmark from "commonmark";
+      import * as chev from "chevrotain";
+      import {parserErrors, EveError} from "./errors";
+      var {Lexer, tokenMatcher} = chev;
+      export var Token = chev.Token;
+      import * as uuid from "uuid";
+      
+      //-----------------------------------------------------------
+      // Utils
+      //-----------------------------------------------------------
+      
+      function cleanString(str:string) {
+        let cleaned = str
+          .replace(/\\\\n/g, "\\n")
+          .replace(/\\\\t/g, "\\t")
+          .replace(/\\\\r/g, "\\r")
+          .replace(/\\\\"/g, "\\"")
+          .replace(/\\\\{/g, "{")
+          .replace(/\\\\}/g, "}");
+        return cleaned;
+      }
+      
+      function toEnd(node:any) {
+        if(node && node.tokenType !== undefined) {
+          return node.endOffset! + 1;
+        }
+        return node.endOffset;
+      }
+      
+      //-----------------------------------------------------------
+      // Markdown
+      //-----------------------------------------------------------
+      
+      let markdownParser = new commonmark.Parser();
+      
+      function parseMarkdown(markdown: string, docId: string) {
+        let parsed = markdownParser.parse(markdown);
+        let walker = parsed.walker();
+        var cur;
+        let tokenId = 0;
+        var text = [];
+        var extraInfo:any = {};
+        var pos = 0;
+        var lastLine = 1;
+        var spans = [];
+        var context = [];
+        var blocks = [];
+        while(cur = walker.next()) {
+          let node = cur.node as any;
+          if(cur.entering) {
+            while(node.sourcepos && node.sourcepos[0][0] > lastLine) {
+              lastLine++;
+              pos++;
+              text.push("\\n");
+            }
+            if(node.type !== "text") {
+              context.push({node, start: pos});
+            }
+            if(node.type == "text" || node.type === "code_block" || node.type == "code") {
+              text.push(node.literal);
+              pos += node.literal.length;
+            }
+            if(node.type == "softbreak") {
+              text.push("\\n");
+              pos += 1;
+              lastLine++;
+              context.pop();
+            }
+            if(node.type == "code_block") {
+              let spanId = `${docId}|block|${tokenId++}`;
+              let start = context.pop()!.start;
+              node.id = spanId;
+              node.startOffset = start;
+              let type = node.type;
+              if(!(node as any)._isFenced) {
+                type = "indented_code_block";
+              } else {
+                blocks.push(node);
+              }
+              spans.push(start, pos, node.type, spanId);
+              lastLine = node.sourcepos[1][0] + 1;
+            }
+            if(node.type == "code") {
+              let spanId = `${docId}|${tokenId++}`;
+              let start = context.pop()!.start;
+              spans.push(start, pos, node.type, spanId);
+            }
+          } else {
+            let info = context.pop()!;
+            if(node !== info.node) {
+              throw new Error("Common mark is exiting a node that doesn't agree with the context stack");
+            }
+            if(node.type == "emph" || node.type == "strong" || node.type == "link") {
+              let spanId = `${docId}|${tokenId++}`;
+              spans.push(info.start, pos, node.type, spanId);
+              if(node.type === "link") {
+                extraInfo[spanId] = {destination: node._destination};
+              }
+            } else if(node.type == "heading" || node.type == "item") {
+              let spanId = `${docId}|${tokenId++}`;
+              spans.push(info.start, info.start, node.type, spanId);
+              extraInfo[spanId] = {level: node._level, listData: node._listData};
+            }
+          }
+        }
+        return {text: text.join(""), spans, blocks, extraInfo};
+      }
+      
+      //-----------------------------------------------------------
+      // Tokens
+      //-----------------------------------------------------------
+      
+      const breakChars = "@#\\\\.,\\\\(\\\\)\\\\[\\\\]\\\\{\\\\}⦑⦒:\\\\\\"";
+      
+      // Markdown
+      export class DocContent extends Token { static PATTERN = /[^\\n]+/; }
+      export class Fence extends Token {
+        static PATTERN = /```|~~~/;
+        static PUSH_MODE = "code";
+      }
+      export class CloseFence extends Token {
+        static PATTERN = /```|~~~/;
+        static POP_MODE = true;
+      }
+      
+      // Comments
+      export class CommentLine extends Token { static PATTERN = /\\/\\/.*\\n/; label = "comment"; static GROUP = "comments"; }
+      
+      // Operators
+      export class Equality extends Token { static PATTERN = /:|=/; label = "equality"; }
+      export class Comparison extends Token { static PATTERN = />=|<=|!=|>|</; label = "comparison"; }
+      export class AddInfix extends Token { static PATTERN = /\\+|-/; label = "infix"; }
+      export class MultInfix extends Token { static PATTERN = /\\*|\\//; label = "infix"; }
+      export class Merge extends Token { static PATTERN = /<-/; label = "merge"; }
+      export class Set extends Token { static PATTERN = /:=/; label = "set"; }
+      export class Mutate extends Token { static PATTERN = /\\+=|-=/; label = "mutate"; }
+      export class Dot extends Token { static PATTERN = /\\./; label = "dot"; }
+      export class Pipe extends Token { static PATTERN = /\\|/; label = "pipe"; }
+      
+      // Identifier
+      export class Identifier extends Token { static PATTERN = new RegExp(`([\\\\+-/\\\\*][^\\\\s${breakChars}]+|[^\\\\d${breakChars}\\\\+-/\\\\*][^\\\\s${breakChars}]*)(?=[^\\\\[])`); label = "identifier"; }
+      export class FunctionIdentifier extends Token { static PATTERN = new RegExp(`([\\\\+-/\\\\*][^\\\\s${breakChars}]+|[^\\\\d${breakChars}\\\\+-/\\\\*][^\\\\s${breakChars}]*)(?=\\\\[)`); label = "functionIdentifier"; }
+      
+      // Keywords
+      export class Keyword extends Token {
+          static PATTERN = Lexer.NA;
+          static LONGER_ALT = Identifier;
+      }
+      export class Lookup extends Keyword { static PATTERN = /lookup(?=\\[)/; label = "lookup"; }
+      export class Action extends Keyword { static PATTERN = /bind|commit/; label = "action"; }
+      export class Search extends Keyword { static PATTERN = /search/; label = "search"; }
+      export class If extends Keyword { static PATTERN = /if/; label = "if"; }
+      export class Else extends Keyword { static PATTERN = /else/; label = "else"; }
+      export class Then extends Keyword { static PATTERN = /then/; label = "then"; }
+      export class Not extends Keyword { static PATTERN = /not/; label = "not"; }
+      
+      // Values
+      export class Bool extends Keyword { static PATTERN = /true|false/; label = "bool"; }
+      export class Num extends Token { static PATTERN = /-?\\d+(\\.\\d+)?/; label = "num"; }
+      export class None extends Keyword { static PATTERN = /none/; label = "none"; }
+      export class Name extends Token { static PATTERN = /@/; label = "name"; }
+      export class Tag extends Token { static PATTERN = /#/; label = "tag"; }
+      
+      // Delimiters
+      export class OpenBracket extends Token { static PATTERN = /\\[/; label = "open-bracket"; }
+      export class CloseBracket extends Token { static PATTERN = /\\]/; label = "close-bracket"; }
+      export class OpenParen extends Token { static PATTERN = /\\(/; label = "open-paren"; }
+      export class CloseParen extends Token { static PATTERN = /\\)/; label = "close-paren"; }
+      
+      // Strings
+      export class StringChars extends Token { static PATTERN = /(\\\\.|{(?=[^{])|[^"\\\\{])+/; label = "string"; }
+      export class OpenString extends Token {
+        static PATTERN = /"/;
+        static PUSH_MODE = "string";
+        label = "quote";
+      }
+      export class CloseString extends Token {
+        static PATTERN = /"/;
+        static POP_MODE = true;
+        label = "quote";
+      }
+      
+      // String Embeds
+      export class StringEmbedOpen extends Token {
+        static PATTERN = /{{/;
+        static PUSH_MODE = "code";
+        label = "string-embed-open";
+      }
+      export class StringEmbedClose extends Token {
+        static PATTERN = /}}/;
+        static POP_MODE = true;
+        label = "string-embed-close";
+      }
+      
+      // Whitespace
+      export class WhiteSpace extends Token {
+        static PATTERN = /\\s+|,/;
+        static GROUP = Lexer.SKIPPED;
+      }
+      
+      //-----------------------------------------------------------
+      // Lexers
+      //-----------------------------------------------------------
+      
+      let codeTokens: any[] = [
+        CloseFence, WhiteSpace, CommentLine, OpenBracket, CloseBracket, OpenParen,
+        CloseParen, StringEmbedClose, OpenString, Bool, Action, Set, Equality, Dot, Pipe, Merge,
+        Mutate, Comparison, Num,  Search, Lookup, If, Else, Then,
+        Not, None, Name, Tag, FunctionIdentifier, Identifier, AddInfix, MultInfix
+      ];
+      
+      let stringEmbedTokens: any[] = [StringEmbedClose].concat(codeTokens);
+      
+      let LexerModes:any = {
+        "doc": [WhiteSpace, Fence, DocContent],
+        "code": codeTokens,
+        "string": [CloseString, StringEmbedOpen, StringChars],
+        // "stringEmbed": stringEmbedTokens,
+      };
+      
+      let allTokens: any[] = codeTokens.concat([Fence, DocContent, CloseString, StringEmbedOpen, StringEmbedClose, StringChars]);
+      
+      let EveDocLexer = new Lexer({modes: LexerModes, defaultMode: "doc"});
+      let EveBlockLexer = new Lexer({modes: LexerModes, defaultMode: "code"});
+      
+      //-----------------------------------------------------------
+      // Parse Nodes
+      //-----------------------------------------------------------
+      
+      export type NodeDependent = chev.IToken | ParseNode;
+      
+      export interface ParseNode {
+        type?: string
+        id?: string
+        startOffset?: number,
+        endOffset?: number,
+        from: NodeDependent[]
+        [property: string]: any
+      }
+      
+      export class ParseBlock {
+        id: string;
+        start: number;
+        nodeId = 0;
+        variables: {[name: string]: ParseNode} = {};
+        equalities: any[] = [];
+        scanLike: ParseNode[] = [];
+        expressions: ParseNode[] = [];
+        binds: ParseNode[] = [];
+        commits: ParseNode[] = [];
+        variableLookup: {[name: string]: ParseNode};
+        links: string[] = [];
+        tokens: chev.Token[];
+        searchScopes: string[] = [];
+        parent: ParseBlock | undefined;
+      
+        constructor(id:string, variableLookup?:any) {
+          this.id = id;
+          this.variableLookup = variableLookup || {};
+        }
+      
+        toVariable(name:string, generated = false) {
+          let variable = this.variableLookup[name];
+          if(!variable) {
+            this.variableLookup[name] = this.makeNode("variable", {name, from: [], generated});
+          }
+          variable = this.variables[name] = this.variableLookup[name];
+          return {id: variable.id, type: "variable", name, from: [], generated};
+        }
+      
+        addUsage(variable:any, usage:any) {
+          let global = this.variableLookup[variable.name];
+          global.from.push(usage)
+          if(global.from.length === 1) {
+            global.startOffset = usage.startOffset;
+            global.endOffset = toEnd(usage);
+          }
+          variable.from.push(usage);
+          variable.startOffset = usage.startOffset;
+          variable.endOffset = toEnd(usage);
+          this.links.push(variable.id, usage.id);
+        }
+      
+        equality(a:any, b:any) {
+          this.equalities.push([a, b]);
+        }
+      
+        commit(node: ParseNode) {
+          this.commits.push(node);
+        }
+      
+        bind(node: ParseNode) {
+          this.binds.push(node);
+        }
+      
+        expression(node: ParseNode) {
+          this.expressions.push(node);
+        }
+      
+        scan(node: ParseNode) {
+          this.scanLike.push(node);
+        }
+      
+        makeNode(type:any, node: ParseNode) {
+          if(!node.id) {
+            node.id = `${this.id}|node|${this.nodeId++}`;
+          }
+          for(let from of node.from as any[]) {
+            this.links.push(node.id, from.id);
+          }
+          if(node.from.length) {
+            node.startOffset = node.from[0].startOffset;
+            node.endOffset = toEnd(node.from[node.from.length - 1]);
+          }
+          node.type = type;
+          return node;
+        }
+      
+        addSearchScopes(scopes: string[]) {
+          for(let scope of scopes) {
+            if(this.searchScopes.indexOf(scope) === -1) {
+              this.searchScopes.push(scope);
+            }
+          }
+        }
+      
+        subBlock() {
+          let neue = new ParseBlock(`${this.id}|sub${this.nodeId++}`, this.variableLookup);
+          neue.parent = this;
+          return neue;
+        }
+      }
+      
+      
+      //-----------------------------------------------------------
+      // Parser
+      //-----------------------------------------------------------
+      
+      export class Parser extends chev.Parser {
+        customErrors: any[];
+        block: ParseBlock;
+        activeScopes: string[];
+        currentAction: string;
+      
+        // Parser patterns
+        doc: any;
+        codeBlock: any;
+        fencedBlock: any;
+        section: any;
+        searchSection: any;
+        actionSection: any;
+        value: any;
+        bool: any;
+        num: any;
+        scopeDeclaration: any;
+        name: any;
+        statement: any;
+        expression: any;
+        attribute: any;
+        attributeEquality: any;
+        attributeComparison: any;
+        attributeNot: any;
+        attributeOperation: any;
+        record: any;
+        tag: any;
+        functionRecord: any;
+        notStatement: any;
+        comparison: any;
+        infix: any;
+        attributeAccess: any;
+        actionStatement: any;
+        actionEqualityRecord: any;
+        actionAttributeExpression: any;
+        actionOperation: any;
+        actionLookup: any;
+        variable: any;
+        recordOperation: any;
+        ifExpression: any;
+        ifBranch: any;
+        elseIfBranch: any;
+        elseBranch: any;
+        multiplication: any;
+        addition: any;
+        infixValue: any;
+        parenthesis: any;
+        attributeMutator: any;
+        singularAttribute: any;
+        stringInterpolation: any;
+      
+      
+        constructor(input:any) {
+          super(input, allTokens, {});
+          let self = this;
+          let asValue = (node:any) => {
+            if(node.type === "constant" || node.type === "variable" || node.type === "parenthesis") {
+              return node;
+            } else if(node.variable) {
+              return node.variable;
+            }
+            throw new Error("Tried to get value of a node that is neither a constant nor a variable.\\n\\n" + JSON.stringify(node));
+          }
+          let ifOutputs = (expression:any) => {
+            let outputs = [];
+            if(expression.type === "parenthesis") {
+              for(let item of expression.items) {
+                outputs.push(asValue(item));
+              }
+            } else {
+              outputs.push(asValue(expression));
+            }
+            return outputs;
+          }
+      
+          let makeNode = (type:string, node:any) => {
+            return self.block.makeNode(type, node);
+          }
+      
+          let blockStack:any[] = [];
+          let pushBlock = (blockId?:string) => {
+            let block;
+            let prev = blockStack[blockStack.length - 1];
+            if(prev) {
+              block = prev.subBlock();
+            } else {
+              block = new ParseBlock(blockId || "block");
+            }
+            blockStack.push(block);
+            self.block = block;
+            return block;
+          }
+      
+          let popBlock = () => {
+            let popped = blockStack.pop();
+            self.block = blockStack[blockStack.length - 1];
+            return popped;
+          }
+      
+          //-----------------------------------------------------------
+          // Doc rules
+          //-----------------------------------------------------------
+      
+          self.RULE("doc", () => {
+            let doc = {
+              full: [] as any[],
+              content: [] as any[],
+              blocks: [] as any[],
+            }
+            self.MANY(() => {
+              self.OR([
+                {ALT: () => {
+                  let content = self.CONSUME(DocContent);
+                  doc.full.push(content);
+                  doc.content.push(content);
+                }},
+                {ALT: () => {
+                  let block : any = self.SUBRULE(self.fencedBlock);
+                  if(doc.content.length) {
+                    block.name = doc.content[doc.content.length - 1].image;
+                  } else {
+                    block.name = "Unnamed block";
+                  }
+                  doc.full.push(block);
+                  doc.blocks.push(block);
+                }},
+              ])
+            });
+            return doc;
+          });
+      
+          self.RULE("fencedBlock", () => {
+            self.CONSUME(Fence);
+            let block = self.SUBRULE(self.codeBlock);
+            let fence = self.CONSUME(CloseFence);
+            return block;
+          });
+      
+          //-----------------------------------------------------------
+          // Blocks
+          //-----------------------------------------------------------
+      
+          self.RULE("codeBlock", (blockId = "block") => {
+            blockStack = [];
+            let block = pushBlock(blockId);
+            self.MANY(() => { self.SUBRULE(self.section) })
+            return popBlock();
+          })
+      
+          self.RULE("section", () => {
+            return self.OR([
+              {ALT: () => { return self.SUBRULE(self.searchSection) }},
+              {ALT: () => { return self.SUBRULE(self.actionSection) }},
+              {ALT: () => { return self.CONSUME(CommentLine); }},
+            ]);
+          });
+      
+      
+          //-----------------------------------------------------------
+          // Scope declaration
+          //-----------------------------------------------------------
+      
+          self.RULE("scopeDeclaration", () => {
+            let scopes:any[] = [];
+            self.OR([
+              {ALT: () => {
+                self.CONSUME(OpenParen);
+                self.AT_LEAST_ONE(() => {
+                  let name: any = self.SUBRULE(self.name);
+                  scopes.push(name.name);
+                })
+                self.CONSUME(CloseParen);
+              }},
+              {ALT: () => {
+                self.AT_LEAST_ONE2(() => {
+                  let name: any = self.SUBRULE2(self.name);
+                  scopes.push(name.name);
+                })
+              }},
+            ]);
+            return scopes;
+          });
+      
+      
+          //-----------------------------------------------------------
+          // Search section
+          //-----------------------------------------------------------
+      
+          self.RULE("searchSection", () => {
+            // @TODO fill in from
+            let from:any[] = [];
+            self.CONSUME(Search);
+            let scopes:any = ["session"];
+            self.OPTION(() => { scopes = self.SUBRULE(self.scopeDeclaration) })
+            self.activeScopes = scopes;
+            self.currentAction = "match";
+            self.block.addSearchScopes(scopes);
+            let statements:any[] = [];
+            self.MANY(() => {
+              let statement: any = self.SUBRULE(self.statement);
+              if(statement) {
+                statements.push(statement);
+                statement.scopes = scopes;
+              }
+            });
+            return makeNode("searchSection", {statements, scopes, from});
+          });
+      
+          self.RULE("statement", () => {
+            return self.OR([
+              {ALT: () => { return self.SUBRULE(self.comparison); }},
+              {ALT: () => { return self.SUBRULE(self.notStatement); }},
+            ])
+          });
+      
+          //-----------------------------------------------------------
+          // Action section
+          //-----------------------------------------------------------
+      
+          self.RULE("actionSection", () => {
+            // @TODO fill in from
+            let from:any[] = [];
+            let action = self.CONSUME(Action).image;
+            let actionKey = action;
+            let scopes:any = ["session"];
+            self.OPTION(() => { scopes = self.SUBRULE(self.scopeDeclaration) })
+            self.activeScopes = scopes;
+            self.currentAction = action!;
+            let statements:any[] = [];
+            self.MANY(() => {
+              let statement = self.SUBRULE(self.actionStatement, [actionKey]) as any;
+              if(statement) {
+                statements.push(statement);
+                statement.scopes = scopes;
+              }
+            });
+            return makeNode("actionSection", {statements, scopes, from});
+          });
+      
+      
+          self.RULE("actionStatement", (actionKey) => {
+            return self.OR([
+              {ALT: () => {
+                let record = self.SUBRULE(self.record, [false, actionKey, "+="]);
+                return record;
+              }},
+              {ALT: () => { return self.SUBRULE(self.actionEqualityRecord, [actionKey]); }},
+              {ALT: () => {
+                let record = self.SUBRULE(self.actionOperation, [actionKey]);
+                (self.block as any)[actionKey](record);
+                return record;
+              }},
+              {ALT: () => { return self.SUBRULE(self.actionLookup, [actionKey]); }},
+            ])
+          });
+      
+          //-----------------------------------------------------------
+          // Action operations
+          //-----------------------------------------------------------
+      
+          self.RULE("actionOperation", (actionKey) => {
+            return self.OR([
+              {ALT: () => { return self.SUBRULE(self.recordOperation, [actionKey]) }},
+              {ALT: () => { return self.SUBRULE(self.attributeOperation, [actionKey]) }},
+            ]);
+          });
+      
+          self.RULE("attributeOperation", (actionKey) => {
+            let mutator = self.SUBRULE(self.attributeMutator) as any;
+            let {attribute, parent} = mutator;
+            return self.OR([
+              {ALT: () => {
+                let variable = self.block.toVariable(`${attribute.image}|${attribute.startLine}|${attribute.startColumn}`, true);
+                let scan = makeNode("scan", {entity: parent, attribute: makeNode("constant", {value: attribute.image, from: [attribute]}), value: variable, scopes: self.activeScopes, from: [mutator]});
+                self.block.addUsage(variable, scan);
+                self.block.scan(scan);
+                self.CONSUME(Merge);
+                let record = self.SUBRULE(self.record, [true, actionKey, "+=", undefined, variable]) as any;
+                record.variable = variable;
+                record.action = "<-";
+                return record;
+              }},
+              {ALT: () => {
+                let op = self.CONSUME(Set);
+                let none = self.CONSUME(None);
+                return makeNode("action", {action: "erase", entity: asValue(parent), attribute: attribute.image, from: [mutator, op, none]});
+              }},
+              {ALT: () => {
+                let op = self.CONSUME2(Set);
+                let value = self.SUBRULE(self.infix);
+                return makeNode("action", {action: op.image, entity: asValue(parent), attribute: attribute.image, value: asValue(value), from: [mutator, op, value]});
+              }},
+              {ALT: () => {
+                let op = self.CONSUME3(Set);
+                let value = self.SUBRULE2(self.record, [false, actionKey, "+=", parent]);
+                return makeNode("action", {action: op.image, entity: asValue(parent), attribute: attribute.image, value: asValue(value), from: [mutator, op, value]});
+              }},
+              {ALT: () => {
+                let variable = self.block.toVariable(`${attribute.image}|${attribute.startLine}|${attribute.startColumn}`, true);
+                let scan = makeNode("scan", {entity: parent, attribute: makeNode("constant", {value: attribute.image, from: [attribute]}), value: variable, scopes: self.activeScopes, from: [mutator]});
+                self.block.addUsage(variable, scan);
+                self.block.scan(scan);
+                let op = self.CONSUME(Mutate);
+                let tag : any = self.SUBRULE(self.tag);
+                return makeNode("action", {action: op.image, entity: variable, attribute: "tag", value: makeNode("constant", {value: tag.tag, from: [tag]}), from: [mutator, op, tag]});
+              }},
+              {ALT: () => {
+                let op = self.CONSUME2(Mutate);
+                let value: any = self.SUBRULE2(self.actionAttributeExpression, [actionKey, op.image, parent]);
+                if(value.type === "record" && !value.extraProjection) {
+                  value.extraProjection = [parent];
+                }
+                if(value.type === "parenthesis") {
+                  let autoIndex = 0;
+                  for(let item of value.items) {
+                    if(item.type === "record" && !value.extraProjection) {
+                      item.extraProjection = [parent];
+                    }
+                    if(item.from[0] && item.from[0].type === "record") {
+                      let record = item.from[0];
+                      record.attributes.push(makeNode("attribute", {attribute: "eve-auto-index", value: makeNode("constant", {value: autoIndex, from: [record]}), from: [record]}));
+                      autoIndex++;
+                    }
+                  }
+                }
+                return makeNode("action", {action: op.image, entity: asValue(parent), attribute: attribute.image, value: asValue(value), from: [mutator, op, value]});
+              }},
+            ])
+          });
+      
+          self.RULE("recordOperation", (actionKey) => {
+            let variable = self.SUBRULE(self.variable) as any;
+            return self.OR([
+              {ALT: () => {
+                let set = self.CONSUME(Set);
+                let none = self.CONSUME(None);
+                return makeNode("action", {action: "erase", entity: asValue(variable), from: [variable, set, none]});
+              }},
+              {ALT: () => {
+                self.CONSUME(Merge);
+                let record = self.SUBRULE(self.record, [true, actionKey, "+=", undefined, variable]) as any;
+                record.needsEntity = true;
+                record.action = "<-";
+                return record;
+              }},
+              {ALT: () => {
+                let op = self.CONSUME(Mutate);
+                let tag : any = self.SUBRULE(self.tag);
+                return makeNode("action", {action: op.image, entity: asValue(variable), attribute: "tag", value: makeNode("constant", {value: tag.tag, from: [tag]}), from: [variable, op, tag]});
+              }},
+            ])
+          });
+      
+          self.RULE("actionLookup", (actionKey) => {
+            let lookup = self.CONSUME(Lookup);
+            let record: any = self.SUBRULE(self.record, [true]);
+            let info: any = {};
+            for(let attribute of record.attributes) {
+              info[attribute.attribute] = attribute.value;
+            }
+            let actionType = "+=";
+            self.OPTION(() => {
+              self.CONSUME(Set);
+              self.CONSUME(None);
+              if(info["value"] !== undefined) {
+                actionType = "-=";
+              } else {
+                actionType = "erase";
+              }
+            })
+            let action = makeNode("action", {action: actionType, entity: info.record, attribute: info.attribute, value: info.value, node: info.node, scopes: self.activeScopes, from: [lookup, record]});
+            (self.block as any)[actionKey](action);
+            return action;
+          });
+      
+          self.RULE("actionAttributeExpression", (actionKey, action, parent) => {
+            return self.OR([
+              {ALT: () => { return self.SUBRULE(self.record, [false, actionKey, action, parent]); }},
+              {ALT: () => { return self.SUBRULE(self.infix); }},
+            ])
+          })
+      
+          self.RULE("actionEqualityRecord", (actionKey) => {
+            let variable = self.SUBRULE(self.variable);
+            self.CONSUME(Equality);
+            let record : any = self.SUBRULE(self.record, [true, actionKey, "+="]);
+            record.variable = variable;
+            (self.block as any)[actionKey](record);
+            return record;
+          });
+      
+          //-----------------------------------------------------------
+          // Record + attribute
+          //-----------------------------------------------------------
+      
+          self.RULE("record", (noVar = false, blockKey = "scan", action = false, parent?, passedVariable?) => {
+            let attributes:any[] = [];
+            let start = self.CONSUME(OpenBracket);
+            let from: NodeDependent[] = [start];
+            let info: any = {attributes, action, scopes: self.activeScopes, from};
+            if(parent) {
+              info.extraProjection = [parent];
+            }
+            if(passedVariable) {
+              info.variable = passedVariable;
+              info.variable.nonProjecting = true;
+            } else if(!noVar) {
+              info.variable = self.block.toVariable(`record|${start.startLine}|${start.startColumn}`, true);
+              info.variable.nonProjecting = true;
+            }
+            let nonProjecting = false;
+            self.MANY(() => {
+              self.OR([
+                {ALT: () => {
+                  let attribute: any = self.SUBRULE(self.attribute, [false, blockKey, action, info.variable]);
+                  // Inline handles attributes itself and so won't return any attribute for us to add
+                  // to this object
+                  if(!attribute) return;
+      
+                  if(attribute.constructor === Array) {
+                    for(let attr of attribute as any[]) {
+                      attr.nonProjecting = nonProjecting;
+                      attributes.push(attr);
+                      from.push(attr);
+                    }
+                  } else {
+                    attribute.nonProjecting = nonProjecting;
+                    attributes.push(attribute);
+                    from.push(attribute);
+                  }
+                }},
+                {ALT: () => {
+                  nonProjecting = true;
+                  let pipe = self.CONSUME(Pipe);
+                  from.push(pipe);
+                  return pipe;
+                }},
+              ]);
+            })
+            from.push(self.CONSUME(CloseBracket));
+            let record : any = makeNode("record", info);
+            if(!noVar) {
+              self.block.addUsage(info.variable, record);
+              (self.block as any)[blockKey](record);
+            }
+            return record;
+          });
+      
+          self.RULE("attribute", (noVar, blockKey, action, recordVariable) => {
+            return self.OR([
+              {ALT: () => { return self.SUBRULE(self.attributeEquality, [noVar, blockKey, action, recordVariable]); }},
+              {ALT: () => { return self.SUBRULE(self.attributeComparison); }},
+              {ALT: () => { return self.SUBRULE(self.attributeNot, [recordVariable]); }},
+              {ALT: () => { return self.SUBRULE(self.singularAttribute); }},
+              {ALT: () => {
+                let value: any = self.SUBRULE(self.value);
+                let token = value.from[0];
+      
+                let message = "Value missing attribute";
+      
+                if (value.hasOwnProperty("value")) {
+                  message = `"${value.value}" needs to be labeled with an attribute`;
+                }
+      
+                self.customErrors.push({
+                  message,
+                  name: "Unlabeled value",
+                  resyncedTokens: [],
+                  context: {
+                    ruleOccurrenceStack: [],
+                    ruleStack: []
+                  },
+                  token
+                });
+              }},
+            ]);
+          });
+      
+          self.RULE("singularAttribute", (forceGenerate) => {
+            return self.OR([
+              {ALT: () => {
+                let tag : any = self.SUBRULE(self.tag);
+                return makeNode("attribute", {attribute: "tag", value: makeNode("constant", {value: tag.tag, from: [tag]}), from: [tag]});
+              }},
+              {ALT: () => {
+                let variable : any = self.SUBRULE(self.variable, [forceGenerate]);
+                return makeNode("attribute", {attribute: variable.from[0].image, value: variable, from: [variable]});
+              }},
+            ]);
+          });
+      
+          self.RULE("attributeMutator", () => {
+            let scans:any[] = [];
+            let entity:any, attribute:any, value:any;
+            let needsEntity = true;
+            let from:any[] = [];
+            entity = self.SUBRULE(self.variable);
+            let dot = self.CONSUME(Dot);
+            from.push(entity, dot);
+            self.MANY(() => {
+              attribute = self.CONSUME(Identifier);
+              from.push(attribute);
+              from.push(self.CONSUME2(Dot));
+              value = self.block.toVariable(`${attribute.image}|${attribute.startLine}|${attribute.startColumn}`, true);
+              self.block.addUsage(value, attribute);
+              let scopes = self.activeScopes;
+              if(self.currentAction !== "match") {
+                scopes = self.block.searchScopes;
+              }
+              let scan = makeNode("scan", {entity, attribute: makeNode("constant", {value: attribute.image, from: [value]}), value, needsEntity, scopes, from: [entity, dot, attribute]});
+              self.block.scan(scan);
+              needsEntity = false;
+              entity = value;
+            });
+            attribute = self.CONSUME2(Identifier);
+            from.push(attribute);
+            return makeNode("attributeMutator", {attribute: attribute, parent: entity, from});
+          });
+      
+          self.RULE("attributeAccess", () => {
+            let scans:any[] = [];
+            let entity:any, attribute:any, value:any;
+            let needsEntity = true;
+            entity = self.SUBRULE(self.variable);
+            let parentId = entity.name;
+            self.AT_LEAST_ONE(() => {
+              let dot = self.CONSUME(Dot);
+              attribute = self.CONSUME(Identifier);
+              parentId = `${parentId}|${attribute.image}`;
+              value = self.block.toVariable(parentId, true);
+              self.block.addUsage(value, attribute);
+              let scopes = self.activeScopes;
+              if(self.currentAction !== "match") {
+                scopes = self.block.searchScopes;
+              }
+              let scan = makeNode("scan", {entity, attribute: makeNode("constant", {value: attribute.image, from: [attribute]}), value, needsEntity, scopes, from: [entity, dot, attribute]});
+              self.block.scan(scan);
+              needsEntity = false;
+              entity = value;
+            });
+            return value;
+          });
+      
+          self.RULE("attributeEquality", (noVar, blockKey, action, parent) => {
+            let attributes:any[] = [];
+            let autoIndex = 1;
+            let attributeNode:any;
+            let attribute: any = self.OR([
+              {ALT: () => {
+                attributeNode = self.CONSUME(Identifier);
+                return attributeNode.image;
+              }},
+              {ALT: () => {
+                attributeNode = self.CONSUME(Num);
+                return parseFloat(attributeNode.image) as any;
+              }}
+            ]);
+            let equality = self.CONSUME(Equality);
+            let result : any;
+            self.OR2([
+              {ALT: () => {
+                result = self.SUBRULE(self.infix);
+                // if the result is a parenthesis, we have to make sure that if there are sub-records
+                // inside that they get eve-auto-index set on them and they also have the parent transfered
+                // down to them. If we don't do this, we'll end up with children that are shared between
+                // the parents instead of one child per parent.
+                if(result.type === "parenthesis") {
+                  for(let item of result.items) {
+                    // this is a bit sad, but by the time we see the parenthesis, the records have been replaced
+                    // with their variables. Those variables are created from the record object though, so we can
+                    // check the from of the variable for a reference to the record.
+                    if(item.type === "variable" && item.from[0] && item.from[0].type === "record") {
+                      let record = item.from[0];
+                      // if we have a parent, we need to make sure it ends up part of our extraProjection set
+                      if(parent && !item.extraProjection) {
+                        record.extraProjection = [parent];
+                      } else if(parent) {
+                        record.extraProjection.push(parent);
+                      }
+                      // Lastly we need to add the eve-auto-index attribute to make sure this is consistent with the case
+                      // where we leave the parenthesis off and just put records one after another.
+                      record.attributes.push(makeNode("attribute", {attribute: "eve-auto-index", value: makeNode("constant", {value: autoIndex, from: [record]}), from: [record]}));
+                      autoIndex++;
+                    }
+                  }
+                }
+              }},
+              {ALT: () => {
+                result = self.SUBRULE(self.record, [noVar, blockKey, action, parent]);
+                self.MANY(() => {
+                  autoIndex++;
+                  let record : any = self.SUBRULE2(self.record, [noVar, blockKey, action, parent]);
+                  record.attributes.push(makeNode("attribute", {attribute: "eve-auto-index", value: makeNode("constant", {value: autoIndex, from: [record]}), from: [record]}));
+                  attributes.push(makeNode("attribute", {attribute, value: asValue(record), from: [attributeNode, equality, record]}));
+                })
+                if(autoIndex > 1) {
+                  result.attributes.push(makeNode("attribute", {attribute: "eve-auto-index", value: makeNode("constant", {value: 1, from: [result]}), from: [result]}));
+                }
+              }},
+            ]);
+            attributes.push(makeNode("attribute", {attribute, value: asValue(result), from: [attributeNode, equality, result]}))
+            return attributes;
+          });
+      
+          self.RULE("attributeComparison", () => {
+            let attribute = self.CONSUME(Identifier);
+            let comparator = self.CONSUME(Comparison);
+            let result = self.SUBRULE(self.expression);
+            let variable = self.block.toVariable(`attribute|${attribute.startLine}|${attribute.startColumn}`, true);
+            let expression = makeNode("expression", {op: `compare/${comparator.image}`, args: [asValue(variable), asValue(result)], from: [attribute, comparator, result]})
+            self.block.addUsage(variable, expression);
+            self.block.expression(expression);
+            return makeNode("attribute", {attribute: attribute.image, value: variable, from: [attribute, comparator, expression]});
+          });
+      
+          self.RULE("attributeNot", (recordVariable) => {
+            let block = pushBlock();
+            block.type = "not";
+            let not = self.CONSUME(Not);
+            let start = self.CONSUME(OpenParen);
+            let attribute: any = self.OR([
+              {ALT: () => { return self.SUBRULE(self.attributeComparison); }},
+              {ALT: () => { return self.SUBRULE(self.singularAttribute, [true]); }},
+            ]);
+            let end = self.CONSUME(CloseParen);
+            // we have to add a record for this guy
+            let scan : any = makeNode("scan", {entity: recordVariable, attribute: makeNode("constant", {value: attribute.attribute, from: [attribute]}), value: attribute.value, needsEntity: true, scopes: self.activeScopes, from: [attribute]});
+            block.variables[recordVariable.name] = recordVariable;
+            block.scan(scan);
+            block.from = [not, start, attribute, end];
+            block.startOffset = not.startOffset;
+            block.endOffset = toEnd(end);
+            popBlock();
+            self.block.scan(block);
+            return;
+          });
+      
+          //-----------------------------------------------------------
+          // Name and tag
+          //-----------------------------------------------------------
+      
+          self.RULE("name", () => {
+            let at = self.CONSUME(Name);
+            let name = self.CONSUME(Identifier);
+            self.customErrors.push({message: `Databases have been deprecated, so @${name.image} has no meaning here`, name: "Database deprecation", resyncedTokens: [], context:{ruleOccurrenceStack: [], ruleStack: []}, token:name})
+            return makeNode("name", {name: name.image, from: [at, name]});
+          });
+      
+          self.RULE("tag", () => {
+            let hash = self.CONSUME(Tag);
+            let tag = self.CONSUME(Identifier);
+            return makeNode("tag", {tag: tag.image, from: [hash, tag]});
+          });
+      
+          //-----------------------------------------------------------
+          // Function
+          //-----------------------------------------------------------
+      
+          self.RULE("functionRecord", (): any => {
+            let name = self.OR([
+                {ALT: () => { return self.CONSUME(FunctionIdentifier); }},
+                {ALT: () => { return self.CONSUME(Lookup); }}
+            ]);
+            let record: any = self.SUBRULE(self.record, [true]);
+            if(name.image === "lookup") {
+              let info: any = {};
+              for(let attribute of record.attributes) {
+                info[attribute.attribute] = attribute.value;
+              }
+              let scan = makeNode("scan", {entity: info.record, attribute: info.attribute, value: info.value, node: info.node, scopes: self.activeScopes, from: [name, record]});
+              self.block.scan(scan);
+              return scan;
+            } else {
+              let variable = self.block.toVariable(`return|${name.startLine}|${name.startColumn}`, true);
+              let functionRecord = makeNode("functionRecord", {op: name.image, record, variable, from: [name, record]});
+              self.block.addUsage(variable, functionRecord);
+              self.block.expression(functionRecord);
+              return functionRecord;
+            }
+          });
+      
+          //-----------------------------------------------------------
+          // Comparison
+          //-----------------------------------------------------------
+      
+          self.RULE("comparison", (nonFiltering) : any => {
+            let left = self.SUBRULE(self.expression);
+            let from = [left];
+            let rights:any[] = [];
+            self.MANY(() => {
+              let comparator = self.OR([
+                {ALT: () => { return self.CONSUME(Comparison); }},
+                {ALT: () => { return self.CONSUME(Equality); }}
+              ]);
+              let value = self.OR2([
+                {ALT: () => { return self.SUBRULE2(self.expression); }},
+                {ALT: () => { return self.SUBRULE(self.ifExpression); }}
+              ]);
+              from.push(comparator, value);
+              rights.push({comparator, value});
+            })
+            if(rights.length) {
+              let expressions = [];
+              let curLeft: any = left;
+              for(let pair of rights) {
+                let {comparator, value} = pair;
+                let expression = null;
+                // if this is a nonFiltering comparison, then we return an expression
+                // with a variable for its return value
+                if(nonFiltering) {
+                  let variable = self.block.toVariable(`comparison|${comparator.startLine}|${comparator.startColumn}`, true);
+                  expression = makeNode("expression", {variable, op: `compare/${comparator.image}`, args: [asValue(curLeft), asValue(value)], from: [curLeft, comparator, value]});
+                  self.block.addUsage(variable, expression);
+                  self.block.expression(expression);
+                } else if(tokenMatcher(comparator, Equality)) {
+                  if(value.type === "choose" || value.type === "union") {
+                    value.outputs = ifOutputs(left);
+                    self.block.scan(value);
+                  } else if(value.type === "functionRecord" && curLeft.type === "parenthesis") {
+                    value.returns = curLeft.items.map(asValue);
+                    self.block.equality(asValue(value.returns[0]), asValue(value));
+                  } else if(curLeft.type === "parenthesis") {
+                    throw new Error("Left hand parenthesis without an if or function on the right");
+                  } else {
+                    self.block.equality(asValue(curLeft), asValue(value));
+                  }
+                } else {
+                  expression = makeNode("expression", {op: `compare/${comparator.image}`, args: [asValue(curLeft), asValue(value)], from: [curLeft, comparator, value]});
+                  self.block.expression(expression);
+                }
+                curLeft = value;
+                if(expression) {
+                  expressions.push(expression);
+                }
+              }
+              return makeNode("comparison", {expressions, from});
+            };
+            return left;
+          });
+      
+          //-----------------------------------------------------------
+          // Special Forms
+          //-----------------------------------------------------------
+      
+          self.RULE("notStatement", () => {
+            let block = pushBlock();
+            block.type = "not";
+            let from: NodeDependent[] = [
+              self.CONSUME(Not),
+              self.CONSUME(OpenParen),
+            ];
+            self.MANY(() => {
+              from.push(self.SUBRULE(self.statement) as ParseNode);
+            });
+            from.push(self.CONSUME(CloseParen));
+            popBlock();
+            block.from = from;
+            block.startOffset = from[0].startOffset;
+            block.endOffset = toEnd(from[from.length - 1]);
+            self.block.scan(block);
+            return;
+          });
+      
+          //-----------------------------------------------------------
+          // If ... then
+          //-----------------------------------------------------------
+      
+          self.RULE("ifExpression", () => {
+            let branches:any[] = [];
+            let exclusive = false;
+            let from = branches;
+            branches.push(self.SUBRULE(self.ifBranch));
+            self.MANY(() => {
+              branches.push(self.OR([
+                {ALT: () => { return self.SUBRULE2(self.ifBranch); }},
+                {ALT: () => {
+                  exclusive = true;
+                  return self.SUBRULE(self.elseIfBranch);
+                }},
+              ]));
+            });
+            self.OPTION(() => {
+              exclusive = true;
+              branches.push(self.SUBRULE(self.elseBranch));
+            });
+            let expressionType = exclusive ? "choose" : "union";
+            return makeNode(expressionType, {branches, from});
+          });
+      
+          self.RULE("ifBranch", () => {
+            let block = pushBlock();
+            let from: NodeDependent[] = [
+              self.CONSUME(If)
+            ]
+            self.AT_LEAST_ONE(() => {
+              let statement = self.SUBRULE(self.statement) as ParseNode;
+              if(statement) {
+                from.push(statement);
+              }
+            })
+            from.push(self.CONSUME(Then));
+            let expression = self.SUBRULE(self.expression) as ParseNode;
+            from.push(expression);
+            block.startOffset = from[0].startOffset;
+            block.endOffset = toEnd(from[from.length - 1]);
+            popBlock();
+            return makeNode("ifBranch", {block, outputs: ifOutputs(expression), exclusive: false, from});
+          });
+      
+          self.RULE("elseIfBranch", () => {
+            let block = pushBlock();
+            let from: NodeDependent[] = [
+              self.CONSUME(Else),
+              self.CONSUME(If),
+            ]
+            self.AT_LEAST_ONE(() => {
+              let statement = self.SUBRULE(self.statement) as ParseNode;
+              if(statement) {
+                from.push(statement);
+              }
+            })
+            from.push(self.CONSUME(Then));
+            let expression = self.SUBRULE(self.expression) as ParseNode;
+            from.push(expression);
+            block.startOffset = from[0].startOffset;
+            block.endOffset = toEnd(from[from.length - 1]);
+            popBlock();
+            return makeNode("ifBranch", {block, outputs: ifOutputs(expression), exclusive: true, from});
+          });
+      
+          self.RULE("elseBranch", () => {
+            let block = pushBlock();
+            let from: NodeDependent[] = [self.CONSUME(Else)];
+            let expression = self.SUBRULE(self.expression) as ParseNode;
+            from.push(expression);
+            block.startOffset = from[0].startOffset;
+            block.endOffset = toEnd(from[from.length - 1]);
+            popBlock();
+            return makeNode("ifBranch", {block, outputs: ifOutputs(expression), exclusive: true, from});
+          });
+      
+          //-----------------------------------------------------------
+          // Infix and operator precedence
+          //-----------------------------------------------------------
+      
+          self.RULE("infix", () => {
+            return self.SUBRULE(self.addition);
+          });
+      
+          self.RULE("addition", () : any => {
+            let left = self.SUBRULE(self.multiplication);
+            let from = [left];
+            let ops:any[] = [];
+            self.MANY(function() {
+              let op = self.CONSUME(AddInfix);
+              let right = self.SUBRULE2(self.multiplication);
+              from.push(op, right);
+              ops.push({op, right})
+            });
+            if(!ops.length) {
+              return left;
+            } else {
+              let expressions = [];
+              let curVar;
+              let curLeft = left;
+              for(let pair of ops) {
+                let {op, right} = pair;
+                curVar = self.block.toVariable(`addition|${op.startLine}|${op.startColumn}`, true);
+                let expression = makeNode("expression", {op: `math/${op.image}`, args: [asValue(curLeft), asValue(right)], variable: curVar, from: [curLeft, op, right]});
+                expressions.push(expression);
+                self.block.addUsage(curVar, expression);
+                self.block.expression(expression)
+                curLeft = expression;
+              }
+              return makeNode("addition", {expressions, variable: curVar, from});
+            }
+          });
+      
+          self.RULE("multiplication", () : any => {
+            let left = self.SUBRULE(self.infixValue);
+            let from = [left];
+            let ops:any = [];
+            self.MANY(function() {
+              let op = self.CONSUME(MultInfix);
+              let right = self.SUBRULE2(self.infixValue);
+              from.push(op, right);
+              ops.push({op, right})
+            });
+            if(!ops.length) {
+              return left;
+            } else {
+              let expressions = [];
+              let curVar;
+              let curLeft = left;
+              for(let pair of ops) {
+                let {op, right} = pair;
+                curVar = self.block.toVariable(`addition|${op.startLine}|${op.startColumn}`, true);
+                let expression = makeNode("expression", {op: `math/${op.image}`, args: [asValue(curLeft), asValue(right)], variable: curVar, from: [curLeft, op, right]});
+                expressions.push(expression);
+                self.block.addUsage(curVar, expression);
+                self.block.expression(expression)
+                curLeft = expression;
+              }
+              return makeNode("multiplication", {expressions, variable: curVar, from});
+            }
+          });
+      
+          self.RULE("parenthesis", () => {
+            let items:any[] = [];
+            let from:any[] = [];
+            from.push(self.CONSUME(OpenParen));
+            self.AT_LEAST_ONE(() => {
+              let item = self.SUBRULE(self.expression);
+              items.push(asValue(item));
+              from.push(item);
+            })
+            from.push(self.CONSUME(CloseParen));
+            if(items.length === 1) {
+              return items[0];
+            }
+            return makeNode("parenthesis", {items, from});
+          });
+      
+          self.RULE("infixValue", () => {
+            return self.OR([
+              {ALT: () => { return self.SUBRULE(self.attributeAccess); }},
+              {ALT: () => { return self.SUBRULE(self.functionRecord); }},
+              {ALT: () => { return self.SUBRULE(self.variable); }},
+              {ALT: () => { return self.SUBRULE(self.value); }},
+              {ALT: () => { return self.SUBRULE(self.parenthesis); }},
+            ]);
+          })
+      
+          //-----------------------------------------------------------
+          // Expression
+          //-----------------------------------------------------------
+      
+          self.RULE("expression", () => {
+            let blockKey:any, action:any;
+            if(self.currentAction !== "match") {
+              blockKey = self.currentAction;
+              action = "+=";
+            }
+            return self.OR([
+              {ALT: () => { return self.SUBRULE(self.infix); }},
+              {ALT: () => { return self.SUBRULE(self.record, [false, blockKey, action]); }},
+            ]);
+          });
+      
+          //-----------------------------------------------------------
+          // Variable
+          //-----------------------------------------------------------
+      
+          self.RULE("variable", (forceGenerate = false) => {
+            let token = self.CONSUME(Identifier);
+            let name = token.image;
+            if(forceGenerate) {
+              name = `${token.image}-${token.startLine}-${token.startColumn}`;
+            }
+            let variable = self.block.toVariable(name!, forceGenerate);
+            self.block.addUsage(variable, token);
+            return variable;
+          });
+      
+          //-----------------------------------------------------------
+          // Values
+          //-----------------------------------------------------------
+      
+          self.RULE("stringInterpolation", () : any => {
+            let args:any[] = [];
+            let start = self.CONSUME(OpenString);
+            let from: NodeDependent[] = [start];
+            self.MANY(() => {
+              let arg = self.OR([
+                {ALT: () => {
+                  let str = self.CONSUME(StringChars)!;
+                  return makeNode("constant", {value: cleanString(str.image!), from: [str]});
+                }},
+                {ALT: () => {
+                  self.CONSUME(StringEmbedOpen);
+                  let expression = self.SUBRULE(self.infix);
+                  self.CONSUME(StringEmbedClose);
+                  return expression;
+                }},
+              ]);
+              args.push(asValue(arg));
+              from.push(arg as ParseNode);
+            });
+            from.push(self.CONSUME(CloseString));
+            if(args.length === 1 && args[0].type === "constant") {
+              return args[0];
+            } else if(args.length === 0) {
+              return makeNode("constant", {value: "", from});
+            }
+            let variable = self.block.toVariable(`concat|${start.startLine}|${start.startColumn}`, true);
+            let expression = makeNode("expression", {op: "eve/internal/concat", args, variable, from});
+            self.block.addUsage(variable, expression);
+            self.block.expression(expression);
+            return expression;
+          });
+      
+          self.RULE("value", () => {
+            return self.OR([
+              {ALT: () => { return self.SUBRULE(self.stringInterpolation) }},
+              {ALT: () => { return self.SUBRULE(self.num) }},
+              {ALT: () => { return self.SUBRULE(self.bool) }},
+            ])
+          })
+      
+          self.RULE("bool", () => {
+            let value = self.CONSUME(Bool);
+            return makeNode("constant", {value: value.image === "true", from: [value]});
+          })
+      
+          self.RULE("num", () => {
+            let num = self.CONSUME(Num);
+            return makeNode("constant", {value: parseFloat(num.image!), from: [num]}) ;
+          });
+      
+          //-----------------------------------------------------------
+          // Chevrotain analysis
+          //-----------------------------------------------------------
+      
+          Parser.performSelfAnalysis(this);
+        }
+      }
+      
+      //-----------------------------------------------------------
+      // Public API
+      //-----------------------------------------------------------
+      
+      export function nodeToBoundaries(node:any, offset = 0) {
+        return [node.startOffset, toEnd(node)];
+      }
+      
+      let eveParser = new Parser([]);
+      
+      export function parseBlock(block:any, blockId:string, offset = 0, spans:any[] = [], extraInfo:any = {}) {
+        let lex: any = EveBlockLexer.tokenize(block);
+        let token: any;
+        let tokenIx = 0;
+        for(token of lex.tokens) {
+          let tokenId = `${blockId}|token|${tokenIx++}`;
+          token.id = tokenId;
+          token.startOffset += offset;
+          spans.push(token.startOffset, token.startOffset + token.image.length, token.label, tokenId);
+        }
+        for(token of lex.groups.comments) {
+          let tokenId = `${blockId}|token|${tokenIx++}`;
+          token.id = tokenId;
+          token.startOffset += offset;
+          spans.push(token.startOffset, token.startOffset + token.image.length, token.label, tokenId);
+        }
+        eveParser.input = lex.tokens;
+        let results;
+        try {
+          eveParser.customErrors = [];
+          // The parameters here are a strange quirk of how Chevrotain works, I believe the
+          // 1 tells chevrotain what level the rule is starting at, we then pass our params
+          // to the codeBlock parser function as an array
+          results = eveParser.codeBlock(1, [blockId]);
+        } catch(e) {
+          console.error("The parser threw an error: " + e);
+        }
+        if(results) {
+          results.start = offset;
+          results.startOffset = offset;
+          results.tokens = lex.tokens;
+          for(let scan of results.scanLike) {
+            let type = "scan-boundary";
+            if(scan.type === "record") {
+              type = "record-boundary";
+            }
+            spans.push(scan.startOffset, scan.endOffset, type, scan.id);
+          }
+          for(let action of results.binds) {
+            let type = "action-boundary";
+            if(action.type === "record") {
+              type = "action-record-boundary";
+            }
+            spans.push(action.startOffset, action.endOffset, type, action.id);
+            extraInfo[action.id] = {kind: "bind"};
+          }
+          for(let action of results.commits) {
+            let type = "action-boundary";
+            if(action.type === "record") {
+              type = "action-record-boundary";
+            }
+            spans.push(action.startOffset, action.endOffset, type, action.id);
+            extraInfo[action.id] = {kind: "commits"};
+          }
+        }
+        let errors = parserErrors(eveParser.errors.concat(eveParser.customErrors), {blockId, blockStart: offset, spans, extraInfo, tokens: lex.tokens});
+        lex.groups.comments.length = 0;
+        return {
+          results,
+          lex,
+          errors,
+        }
+      }
+      
+      let docIx = 0;
+      export function parseDoc(doc:string, docId = `doc|${docIx++}`) {
+        let {text, spans, blocks, extraInfo} = parseMarkdown(doc, docId);
+        let parsedBlocks = [];
+        let allErrors = [];
+        for(let block of blocks) {
+          extraInfo[block.id] = {info: block.info, block};
+          if(block.info.indexOf("disabled") > -1) {
+            extraInfo[block.id].disabled = true;
+          }
+          if(block.info !== "" && block.info.indexOf("eve") === -1) continue;
+          let {results, lex, errors} = parseBlock(block.literal, block.id, block.startOffset, spans, extraInfo);
+          // if this block is disabled, we want the parsed spans and such, but we don't want
+          // the block to be in the set sent to the builder
+          if(!extraInfo[block.id].disabled) {
+            if(errors.length) {
+              allErrors.push(errors);
+            } else if(results) {
+              results.endOffset = block.endOffset;
+              parsedBlocks.push(results);
+            }
+          }
+        }
+      
+        let eavs:any[] = [];
+        for(let block of parsedBlocks) {
+          //if(typeof process === "undefined") console.log(block);
+          toFacts(eavs, block);
+        }
+      
+        for(let errorSet of allErrors) {
+          for(let error of errorSet) {
+            errorToFacts(eavs, error, extraInfo[error.blockId].block);
+          }
+        }
+      
+        return {
+          results: {blocks: parsedBlocks, text, spans, extraInfo, eavs},
+          errors: allErrors,
+        }
+      }
+      
+      export function errorToFacts(eavs:any[], error:EveError, block:any) {
+        let text = block.literal;
+        let offset = block.startOffset;
+        let blockStartLine = block.sourcepos[0][0];
+        let blockLines = text.split("\\n");
+        let pos = 0;
+        let start = error.start - offset;
+        let stop = error.stop - offset;
+        if(isNaN(stop)) stop = text.length + offset;
+        if(isNaN(start)) start = offset;
+        let curLine = 0;
+        let startLine = 0;
+        let startChar = 0;
+        let stopLine = 0;
+        let stopChar = 0;
+        while(curLine < blockLines.length && pos < start) {
+          pos += blockLines[curLine++].length + 1;
+        }
+        startLine = blockStartLine + curLine;
+        startChar = start - (pos - (blockLines[curLine - 1] || "").length) + 2;
+        while(curLine < blockLines.length && pos < stop) {
+          pos += (blockLines[curLine++] || "").length + 1;
+        }
+        stopLine = blockStartLine + curLine;
+        stopChar = stop - (pos - (blockLines[curLine - 1] || "").length) + 2;
+      
+        let sampleText = [];
+        let relativeStart = startLine - blockStartLine;
+        let relativeStop = stopLine - blockStartLine;
+        if(relativeStart != 0) {
+          sampleText.push(blockLines[relativeStart - 1]);
+          sampleText.push(blockLines[relativeStart]);
+        }
+      
+        if(relativeStop > relativeStart) {
+          let cur = relativeStart;
+          while(cur <= relativeStop) {
+            sampleText.push(blockLines[cur]);
+            cur++;
+          }
+        }
+      
+        if(relativeStop < blockLines.length && blockLines[relativeStop + 1]) {
+          sampleText.push(blockLines[relativeStop + 1]);
+        }
+      
+        let errorId = uuid();
+        let startId = uuid();
+        let stopId = uuid();
+        eavs.push([errorId, "tag", "eve/compiler/error"]);
+        eavs.push([errorId, "message", error.message]);
+        eavs.push([errorId, "start", startId]);
+        eavs.push([startId, "line", startLine]);
+        eavs.push([startId, "char", startChar]);
+        eavs.push([errorId, "stop", stopId]);
+        eavs.push([stopId, "line", stopLine]);
+        eavs.push([stopId, "char", stopChar]);
+        eavs.push([errorId, "sample", sampleText.join("\\n")])
+      }
+      
+      export function recordToFacts(eavs:any[], vars:any, scanLike:any) {
+        let rec = uuid();
+        eavs.push([rec, "tag", "eve/compiler/record"]);
+        eavs.push([rec, "record", vars[scanLike.variable.name]]);
+      
+        for(let attr of scanLike.attributes) {
+          if(attr.type === "attribute") {
+            let values;
+            if(attr.value && attr.value.type === "parenthesis") {
+              values = attr.value.items;
+            } else {
+              values = [attr.value];
+            }
+            for(let value of values) {
+              let attrId = uuid();
+              eavs.push([attrId, "attribute", attr.attribute]);
+              eavs.push([attrId, "value", asFactValue(vars, value)]);
+              eavs.push([rec, "attribute", attrId]);
+            }
+          }
+        }
+      
+        return rec;
+      }
+      
+      function asFactValue(vars:any, value:any) {
+        if(typeof value !== "object") return value;
+        return value.type == "constant" ? value.value : vars[value.name];
+      }
+      
+      export function outputToFacts(eavs:any[], vars:any, scanLike:any, blockId:string) {
+        let rec = uuid();
+        eavs.push([rec, "tag", "eve/compiler/output"]);
+        eavs.push([rec, "record", vars[scanLike.variable.name]]);
+        if(scanLike.action === "-=" || scanLike.action === "erase") {
+          eavs.push([rec, "tag", "eve/compiler/remove"]);
+        } else if(scanLike.action === ":=" || scanLike.action === "<-") {
+          let attrs = [];
+          for(let attribute of scanLike.attributes) {
+            attribute.nonProjecting = true;
+            if(attribute.type === "attribute") {
+              if(scanLike.action === ":=" || (attribute.attribute !== "tag")) {
+                attrs.push({type: "attribute", attribute: attribute.attribute, nonProjecting:true});
+              }
+            }
+          }
+          outputToFacts(eavs, vars, {variable:scanLike.variable, action: "erase", attributes:attrs}, blockId);
+        }
+      
+        for(let attr of scanLike.attributes) {
+          if(attr.type === "attribute") {
+            let values;
+            if(attr.value && attr.value.type === "parenthesis") {
+              values = attr.value.items;
+            } else {
+              values = [attr.value];
+            }
+            for(let value of values) {
+              let attrId = uuid();
+              eavs.push([attrId, "attribute", asFactValue(vars, attr.attribute)]);
+              if(value) {
+                eavs.push([attrId, "value", asFactValue(vars, value)]);
+              }
+              if(attr.nonProjecting) {
+                eavs.push([attrId, "tag", "eve/compiler/attribute/non-identity"]);
+              }
+              eavs.push([rec, "attribute", attrId]);
+            }
+          }
+        }
+        eavs.push([blockId, "constraint", rec]);
+        return rec;
+      }
+      
+      function subBlockToFacts(eavs:any[], vars:any, blockId: string, block:any) {
+        for(let [left, right] of block.equalities) {
+          let eqId = uuid();
+          eavs.push([eqId, "tag", "eve/compiler/equality"]);
+          eavs.push([eqId, "left", asFactValue(vars, left)]);
+          eavs.push([eqId, "right", asFactValue(vars, right)]);
+          eavs.push([blockId, "constraint", eqId]);
+        }
+      
+        for(let scanLike of block.scanLike) {
+          switch(scanLike.type) {
+            case "record":
+              let constraint = recordToFacts(eavs, vars, scanLike);
+              eavs.push([blockId, "constraint", constraint]);
+              break;
+            case "scan":
+              let lookupId = uuid();
+              eavs.push([lookupId, "tag", "eve/compiler/lookup"]);
+              eavs.push([lookupId, "record", asFactValue(vars, scanLike.entity)]);
+              eavs.push([lookupId, "attribute", asFactValue(vars, scanLike.attribute)]);
+              eavs.push([lookupId, "value", asFactValue(vars, scanLike.value)]);
+              eavs.push([blockId, "constraint", lookupId]);
+              break;
+            case "not":
+              let notId = uuid();
+              eavs.push([notId, "tag", "eve/compiler/not"]);
+              eavs.push([notId, "tag", "eve/compiler/block"]);
+              eavs.push([blockId, "constraint", notId]);
+              subBlockToFacts(eavs, vars, notId, scanLike);
+              break;
+            case "choose":
+            case "union":
+              let chooseId = uuid();
+              if(scanLike.type === "choose") {
+                eavs.push([chooseId, "tag", "eve/compiler/choose"]);
+              } else {
+                eavs.push([chooseId, "tag", "eve/compiler/union"]);
+              }
+              eavs.push([chooseId, "tag", "eve/compiler/branch-set"]);
+              eavs.push([blockId, "constraint", chooseId]);
+              for(let branch of scanLike.branches) {
+                let branchId = uuid();
+                eavs.push([chooseId, "branch", branchId]);
+                eavs.push([branchId, "tag", "eve/compiler/block"]);
+                subBlockToFacts(eavs, vars, branchId, branch.block);
+                let ix = 1;
+                for(let output of branch.outputs) {
+                  let outputId = uuid();
+                  eavs.push([branchId, "output", outputId]);
+                  eavs.push([outputId, "value", asFactValue(vars, output)]);
+                  eavs.push([outputId, "index", ix]);
+                  ix++;
+                }
+              }
+              let ix = 1;
+              for(let output of scanLike.outputs) {
+                let outputId = uuid();
+                eavs.push([chooseId, "output", outputId]);
+                eavs.push([outputId, "value", asFactValue(vars, output)]);
+                eavs.push([outputId, "index", ix]);
+                ix++;
+              }
+              break;
+          }
+        }
+      
+        for(let expr of block.expressions) {
+          let exprId = uuid();
+          let isAggregate = expr.op.indexOf("gather/") === 0;
+          eavs.push([blockId, "constraint", exprId]);
+          eavs.push([exprId, "tag", "eve/compiler/expression"]);
+          if(isAggregate) {
+            eavs.push([exprId, "tag", "eve/compiler/aggregate"]);
+          }
+          eavs.push([exprId, "op", expr.op]);
+          if(expr.type === "expression") {
+            let ix = 1;
+            for(let arg of expr.args) {
+              let argId = uuid();
+              eavs.push([exprId, "arg", argId]);
+              eavs.push([argId, "index", ix]);
+              eavs.push([argId, "value", asFactValue(vars, arg)]);
+              ix++;
+            }
+            if(expr.variable) {
+              let returnId = uuid();
+              eavs.push([exprId, "return", returnId]);
+              eavs.push([returnId, "index", 1]);
+              eavs.push([returnId, "value", asFactValue(vars, expr.variable)]);
+            }
+          } else if(expr.type === "functionRecord") {
+            for(let arg of expr.record.attributes) {
+              let ix = 1;
+              if(arg.value.type === "parenthesis") {
+                for(let value of arg.value.items) {
+                  let argId = uuid();
+                  eavs.push([exprId, "arg", argId]);
+                  eavs.push([argId, "name", arg.attribute]);
+      
+                  eavs.push([argId, "value", asFactValue(vars, value)]);
+                  eavs.push([argId, "index", ix]);
+                  ix++;
+                }
+              } else {
+                let argId = uuid();
+                eavs.push([exprId, "arg", argId]);
+                eavs.push([argId, "name", arg.attribute]);
+      
+                eavs.push([argId, "value", asFactValue(vars, arg.value)]);
+                eavs.push([argId, "index", ix]);
+              }
+            }
+            if(expr.returns) {
+              let ix = 1;
+              for(let ret of expr.returns) {
+                let returnId = uuid();
+                eavs.push([exprId, "return", returnId]);
+                eavs.push([returnId, "index", ix]);
+                eavs.push([returnId, "value", asFactValue(vars, ret.value)]);
+                ix++;
+              }
+            } else if(expr.variable) {
+              let returnId = uuid();
+              eavs.push([exprId, "return", returnId]);
+              eavs.push([returnId, "index", 1]);
+              eavs.push([returnId, "value", asFactValue(vars, expr.variable)]);
+            }
+          }
+        }
+      }
+      
+      export function toFacts(eavs:any[], block:any) {
+        let blockId = uuid();
+        eavs.push([blockId, "tag", "eve/compiler/rule"]);
+        eavs.push([blockId, "tag", "eve/compiler/block"]);
+        eavs.push([blockId, "name", block.id]);
+        let blockType = "bind";
+        if(block.commits.length) { blockType = "commit"; }
+        eavs.push([blockId, "type", blockType]);
+      
+        let vars:any = {};
+        for(let variable in block.variableLookup) {
+          let varId = uuid();
+          vars[variable] = varId;
+          eavs.push([varId, "tag", "eve/compiler/var"]);
+        }
+      
+        subBlockToFacts(eavs, vars, blockId, block);
+      
+        let outputs = block.binds.concat(block.commits);
+        for(let output of outputs) {
+          switch(output.type) {
+            case "record":
+              outputToFacts(eavs, vars, output, blockId);
+            break;
+            case "action":
+              outputToFacts(eavs, vars, {
+                action: output.action,
+                variable: output.entity,
+                attributes: [{type: "attribute", attribute: output.attribute, value: output.value, nonProjecting: true}]
+              }, blockId)
+              break;
+          }
+        }
+      
+        return eavs;
+      
+        // let lookup = find("eve/compiler/lookup");
+        // let {record:rec, attribute, value} = lookup;
+      
+      }
+    '''
+  }
+  {
+    name: "prosemirror-schema-basic.js"
+    mode: "JavaScript"
+    content: '''
+      // https://github.com/ProseMirror/prosemirror-schema-basic/blob/master/src/schema-basic.js
+      
+      import {Schema} from "prosemirror-model"
+      
+      const pDOM = ["p", 0], blockquoteDOM = ["blockquote", 0], hrDOM = ["hr"],
+            preDOM = ["pre", ["code", 0]], brDOM = ["br"]
+      
+      // :: Object
+      // [Specs](#model.NodeSpec) for the nodes defined in this schema.
+      export const nodes = {
+        // :: NodeSpec The top level document node.
+        doc: {
+          content: "block+"
+        },
+      
+        // :: NodeSpec A plain paragraph textblock. Represented in the DOM
+        // as a `<p>` element.
+        paragraph: {
+          content: "inline*",
+          group: "block",
+          parseDOM: [{tag: "p"}],
+          toDOM() { return pDOM }
+        },
+      
+        // :: NodeSpec A blockquote (`<blockquote>`) wrapping one or more blocks.
+        blockquote: {
+          content: "block+",
+          group: "block",
+          defining: true,
+          parseDOM: [{tag: "blockquote"}],
+          toDOM() { return blockquoteDOM }
+        },
+      
+        // :: NodeSpec A horizontal rule (`<hr>`).
+        horizontal_rule: {
+          group: "block",
+          parseDOM: [{tag: "hr"}],
+          toDOM() { return hrDOM }
+        },
+      
+        // :: NodeSpec A heading textblock, with a `level` attribute that
+        // should hold the number 1 to 6. Parsed and serialized as `<h1>` to
+        // `<h6>` elements.
+        heading: {
+          attrs: {level: {default: 1}},
+          content: "inline*",
+          group: "block",
+          defining: true,
+          parseDOM: [{tag: "h1", attrs: {level: 1}},
+                     {tag: "h2", attrs: {level: 2}},
+                     {tag: "h3", attrs: {level: 3}},
+                     {tag: "h4", attrs: {level: 4}},
+                     {tag: "h5", attrs: {level: 5}},
+                     {tag: "h6", attrs: {level: 6}}],
+          toDOM(node) { return ["h" + node.attrs.level, 0] }
+        },
+      
+        // :: NodeSpec A code listing. Disallows marks or non-text inline
+        // nodes by default. Represented as a `<pre>` element with a
+        // `<code>` element inside of it.
+        code_block: {
+          content: "text*",
+          marks: "",
+          group: "block",
+          code: true,
+          defining: true,
+          parseDOM: [{tag: "pre", preserveWhitespace: "full"}],
+          toDOM() { return preDOM }
+        },
+      
+        // :: NodeSpec The text node.
+        text: {
+          group: "inline"
+        },
+      
+        // :: NodeSpec An inline image (`<img>`) node. Supports `src`,
+        // `alt`, and `href` attributes. The latter two default to the empty
+        // string.
+        image: {
+          inline: true,
+          attrs: {
+            src: {},
+            alt: {default: null},
+            title: {default: null}
+          },
+          group: "inline",
+          draggable: true,
+          parseDOM: [{tag: "img[src]", getAttrs(dom) {
+            return {
+              src: dom.getAttribute("src"),
+              title: dom.getAttribute("title"),
+              alt: dom.getAttribute("alt")
+            }
+          }}],
+          toDOM(node) { return ["img", node.attrs] }
+        },
+      
+        // :: NodeSpec A hard line break, represented in the DOM as `<br>`.
+        hard_break: {
+          inline: true,
+          group: "inline",
+          selectable: false,
+          parseDOM: [{tag: "br"}],
+          toDOM() { return brDOM }
+        }
+      }
+      
+      const emDOM = ["em", 0], strongDOM = ["strong", 0], codeDOM = ["code", 0]
+      
+      // :: Object [Specs](#model.MarkSpec) for the marks in the schema.
+      export const marks = {
+        // :: MarkSpec A link. Has `href` and `title` attributes. `title`
+        // defaults to the empty string. Rendered and parsed as an `<a>`
+        // element.
+        link: {
+          attrs: {
+            href: {},
+            title: {default: null}
+          },
+          inclusive: false,
+          parseDOM: [{tag: "a[href]", getAttrs(dom) {
+            return {href: dom.getAttribute("href"), title: dom.getAttribute("title")}
+          }}],
+          toDOM(node) { return ["a", node.attrs, 0] }
+        },
+      
+        // :: MarkSpec An emphasis mark. Rendered as an `<em>` element.
+        // Has parse rules that also match `<i>` and `font-style: italic`.
+        em: {
+          parseDOM: [{tag: "i"}, {tag: "em"}, {style: "font-style=italic"}],
+          toDOM() { return emDOM }
+        },
+      
+        // :: MarkSpec A strong mark. Rendered as `<strong>`, parse rules
+        // also match `<b>` and `font-weight: bold`.
+        strong: {
+          parseDOM: [{tag: "strong"},
+                     // This works around a Google Docs misbehavior where
+                     // pasted content will be inexplicably wrapped in `<b>`
+                     // tags with a font-weight normal.
+                     {tag: "b", getAttrs: node => node.style.fontWeight != "normal" && null},
+                     {style: "font-weight", getAttrs: value => /^(bold(er)?|[5-9]\\d{2,})$/.test(value) && null}],
+          toDOM() { return strongDOM }
+        },
+      
+        // :: MarkSpec Code font mark. Represented as a `<code>` element.
+        code: {
+          parseDOM: [{tag: "code"}],
+          toDOM() { return codeDOM }
+        }
+      }
+      
+      // :: Schema
+      // This schema rougly corresponds to the document schema used by
+      // [CommonMark](http://commonmark.org/), minus the list elements,
+      // which are defined in the [`prosemirror-schema-list`](#schema-list)
+      // module.
+      //
+      // To reuse elements from this schema, extend or read from its
+      // `spec.nodes` and `spec.marks` [properties](#model.Schema.spec).
+      export const schema = new Schema({nodes, marks})
+    '''
+  }
+  {
+    name: "prosemirror-state.js"
+    mode: "JavaScript"
+    content: '''
+      // https://github.com/ProseMirror/prosemirror-state/blob/master/src/state.js
+      
+      import {Node} from "prosemirror-model"
+      
+      import {Selection} from "./selection"
+      import {Transaction} from "./transaction"
+      
+      function bind(f, self) {
+        return !self || !f ? f : f.bind(self)
+      }
+      
+      class FieldDesc {
+        constructor(name, desc, self) {
+          this.name = name
+          this.init = bind(desc.init, self)
+          this.apply = bind(desc.apply, self)
+        }
+      }
+      
+      const baseFields = [
+        new FieldDesc("doc", {
+          init(config) { return config.doc || config.schema.topNodeType.createAndFill() },
+          apply(tr) { return tr.doc }
+        }),
+      
+        new FieldDesc("selection", {
+          init(config, instance) { return config.selection || Selection.atStart(instance.doc) },
+          apply(tr) { return tr.selection }
+        }),
+      
+        new FieldDesc("storedMarks", {
+          init() { return null },
+          apply(tr, _marks, _old, state) { return state.selection.$cursor ? tr.storedMarks : null }
+        }),
+      
+        new FieldDesc("scrollToSelection", {
+          init() { return 0 },
+          apply(tr, prev) { return tr.scrolledIntoView ? prev + 1 : prev }
+        })
+      ]
+      
+      // Object wrapping the part of a state object that stays the same
+      // across transactions. Stored in the state's `config` property.
+      class Configuration {
+        constructor(schema, plugins) {
+          this.schema = schema
+          this.fields = baseFields.concat()
+          this.plugins = []
+          this.pluginsByKey = Object.create(null)
+          if (plugins) plugins.forEach(plugin => {
+            if (this.pluginsByKey[plugin.key])
+              throw new RangeError("Adding different instances of a keyed plugin (" + plugin.key + ")")
+            this.plugins.push(plugin)
+            this.pluginsByKey[plugin.key] = plugin
+            if (plugin.spec.state)
+              this.fields.push(new FieldDesc(plugin.key, plugin.spec.state, plugin))
+          })
+        }
+      }
+      
+      // ::- The state of a ProseMirror editor is represented by an object
+      // of this type. A state is a persistent data structure—it isn't
+      // updated, but rather a new state value is computed from an old one
+      // using the [`apply`](#state.EditorState.apply) method.
+      //
+      // A state holds a number of built-in fields, and plugins can
+      // [define](#state.PluginSpec.state) additional fields.
+      export class EditorState {
+        constructor(config) {
+          this.config = config
+        }
+      
+        // doc:: Node
+        // The current document.
+      
+        // selection:: Selection
+        // The selection.
+      
+        // storedMarks:: ?[Mark]
+        // A set of marks to apply to the next input. Will be null when
+        // no explicit marks have been set.
+      
+        // :: Schema
+        // The schema of the state's document.
+        get schema() {
+          return this.config.schema
+        }
+      
+        // :: [Plugin]
+        // The plugins that are active in this state.
+        get plugins() {
+          return this.config.plugins
+        }
+      
+        // :: (Transaction) → EditorState
+        // Apply the given transaction to produce a new state.
+        apply(tr) {
+          return this.applyTransaction(tr).state
+        }
+      
+        // : (Transaction) → ?Transaction
+        filterTransaction(tr, ignore = -1) {
+          for (let i = 0; i < this.config.plugins.length; i++) if (i != ignore) {
+            let plugin = this.config.plugins[i]
+            if (plugin.spec.filterTransaction && !plugin.spec.filterTransaction.call(plugin, tr, this))
+              return false
+          }
+          return true
+        }
+      
+        // :: (Transaction) → {state: EditorState, transactions: [Transaction]}
+        // Verbose variant of [`apply`](#state.EditorState.apply) that
+        // returns the precise transactions that were applied (which might
+        // be influenced by the [transaction
+        // hooks](#state.PluginSpec.filterTransaction) of
+        // plugins) along with the new state.
+        applyTransaction(tr) {
+          if (!this.filterTransaction(tr)) return {state: this, transactions: []}
+      
+          let trs = [tr], newState = this.applyInner(tr), seen = null
+          // This loop repeatedly gives plugins a chance to respond to
+          // transactions as new transactions are added, making sure to only
+          // pass the transactions the plugin did not see before.
+          outer: for (;;) {
+            let haveNew = false
+            for (let i = 0; i < this.config.plugins.length; i++) {
+              let plugin = this.config.plugins[i]
+              if (plugin.spec.appendTransaction) {
+                let n = seen ? seen[i].n : 0, oldState = seen ? seen[i].state : this
+                let tr = n < trs.length &&
+                    plugin.spec.appendTransaction.call(plugin, n ? trs.slice(n) : trs, oldState, newState)
+                if (tr && newState.filterTransaction(tr, i)) {
+                  tr.setMeta("appendedTransaction", tr)
+                  if (!seen) {
+                    seen = []
+                    for (let j = 0; j < this.config.plugins.length; j++)
+                      seen.push(j < i ? {state: newState, n: trs.length} : {state: this, n: 0})
+                  }
+                  trs.push(tr)
+                  newState = newState.applyInner(tr)
+                  haveNew = true
+                }
+                if (seen) seen[i] = {state: newState, n: trs.length}
+              }
+            }
+            if (!haveNew) return {state: newState, transactions: trs}
+          }
+        }
+      
+        // : (Transaction) → EditorState
+        applyInner(tr) {
+          if (!tr.before.eq(this.doc)) throw new RangeError("Applying a mismatched transaction")
+          let newInstance = new EditorState(this.config), fields = this.config.fields
+          for (let i = 0; i < fields.length; i++) {
+            let field = fields[i]
+            newInstance[field.name] = field.apply(tr, this[field.name], this, newInstance)
+          }
+          for (let i = 0; i < applyListeners.length; i++) applyListeners[i](this, tr, newInstance)
+          return newInstance
+        }
+      
+        // :: Transaction
+        // Start a [transaction](#state.Transaction) from this state.
+        get tr() { return new Transaction(this) }
+      
+        // :: (Object) → EditorState
+        // Create a new state.
+        //
+        //   config::- Configuration options. Must contain `schema` or `doc` (or both).
+        //
+        //      schema:: ?Schema
+        //      The schema to use.
+        //
+        //      doc:: ?Node
+        //      The starting document.
+        //
+        //      selection:: ?Selection
+        //      A valid selection in the document.
+        //
+        //      plugins:: ?[Plugin]
+        //      The plugins that should be active in this state.
+        static create(config) {
+          let $config = new Configuration(config.schema || config.doc.type.schema, config.plugins)
+          let instance = new EditorState($config)
+          for (let i = 0; i < $config.fields.length; i++)
+            instance[$config.fields[i].name] = $config.fields[i].init(config, instance)
+          return instance
+        }
+      
+        // :: (Object) → EditorState
+        // Create a new state based on this one, but with an adjusted set of
+        // active plugins. State fields that exist in both sets of plugins
+        // are kept unchanged. Those that no longer exist are dropped, and
+        // those that are new are initialized using their
+        // [`init`](#state.StateField.init) method, passing in the new
+        // configuration object..
+        //
+        //   config::- configuration options
+        //
+        //     schema:: ?Schema
+        //     New schema to use.
+        //
+        //     plugins:: ?[Plugin]
+        //     New set of active plugins.
+        reconfigure(config) {
+          let $config = new Configuration(config.schema || this.schema, config.plugins)
+          let fields = $config.fields, instance = new EditorState($config)
+          for (let i = 0; i < fields.length; i++) {
+            let name = fields[i].name
+            instance[name] = this.hasOwnProperty(name) ? this[name] : fields[i].init(config, instance)
+          }
+          return instance
+        }
+      
+        // :: (?union<Object<Plugin>, string, number>) → Object
+        // Serialize this state to JSON. If you want to serialize the state
+        // of plugins, pass an object mapping property names to use in the
+        // resulting JSON object to plugin objects. The argument may also be
+        // a string or number, in which case it is ignored, to support the
+        // way `JSON.stringify` calls `toString` methods.
+        toJSON(pluginFields) {
+          let result = {doc: this.doc.toJSON(), selection: this.selection.toJSON()}
+          if (pluginFields && typeof pluginFields == 'object') for (let prop in pluginFields) {
+            if (prop == "doc" || prop == "selection")
+              throw new RangeError("The JSON fields `doc` and `selection` are reserved")
+            let plugin = pluginFields[prop], state = plugin.spec.state
+            if (state && state.toJSON) result[prop] = state.toJSON.call(plugin, this[plugin.key])
+          }
+          return result
+        }
+      
+        // :: (Object, Object, ?Object<Plugin>) → EditorState
+        // Deserialize a JSON representation of a state. `config` should
+        // have at least a `schema` field, and should contain array of
+        // plugins to initialize the state with. `pluginFields` can be used
+        // to deserialize the state of plugins, by associating plugin
+        // instances with the property names they use in the JSON object.
+        //
+        //   config::- configuration options
+        //
+        //     schema:: Schema
+        //     The schema to use.
+        //
+        //     plugins:: ?[Plugin]
+        //     The set of active plugins.
+        static fromJSON(config, json, pluginFields) {
+          if (!json) throw new RangeError("Invalid input for EditorState.fromJSON")
+          if (!config.schema) throw new RangeError("Required config field 'schema' missing")
+          let $config = new Configuration(config.schema, config.plugins)
+          let instance = new EditorState($config)
+          $config.fields.forEach(field => {
+            if (field.name == "doc") {
+              instance.doc = Node.fromJSON(config.schema, json.doc)
+            } else if (field.name == "selection") {
+              instance.selection = Selection.fromJSON(instance.doc, json.selection)
+            } else {
+              if (pluginFields) for (let prop in pluginFields) {
+                let plugin = pluginFields[prop], state = plugin.spec.state
+                if (plugin.key == field.name && state && state.fromJSON &&
+                    Object.prototype.hasOwnProperty.call(json, prop)) {
+                  // This field belongs to a plugin mapped to a JSON field, read it from there.
+                  instance[field.name] = state.fromJSON.call(plugin, config, json[prop], instance)
+                  return
+                }
+              }
+              instance[field.name] = field.init(config, instance)
+            }
+          })
+          return instance
+        }
+      
+        // Kludge to allow the view to track mappings between different
+        // instances of a state.
+        static addApplyListener(f) {
+          applyListeners.push(f)
+        }
+        static removeApplyListener(f) {
+          let found = applyListeners.indexOf(f)
+          if (found > -1) applyListeners.splice(found, 1)
+        }
+      }
+      
+      const applyListeners = []
+    '''
+  }
+  {
+    name: "prosemirror-model.js"
+    mode: "JavaScript"
+    content: '''
+      // https://github.com/ProseMirror/prosemirror-model/blob/master/src/schema.js
+      
+      import OrderedMap from "orderedmap"
+      
+      import {Node, TextNode} from "./node"
+      import {Fragment} from "./fragment"
+      import {Mark} from "./mark"
+      import {ContentMatch} from "./content"
+      
+      // For node types where all attrs have a default value (or which don't
+      // have any attributes), build up a single reusable default attribute
+      // object, and use it for all nodes that don't specify specific
+      // attributes.
+      function defaultAttrs(attrs) {
+        let defaults = Object.create(null)
+        for (let attrName in attrs) {
+          let attr = attrs[attrName]
+          if (!attr.hasDefault) return null
+          defaults[attrName] = attr.default
+        }
+        return defaults
+      }
+      
+      function computeAttrs(attrs, value) {
+        let built = Object.create(null)
+        for (let name in attrs) {
+          let given = value && value[name]
+          if (given === undefined) {
+            let attr = attrs[name]
+            if (attr.hasDefault) given = attr.default
+            else throw new RangeError("No value supplied for attribute " + name)
+          }
+          built[name] = given
+        }
+        return built
+      }
+      
+      function initAttrs(attrs) {
+        let result = Object.create(null)
+        if (attrs) for (let name in attrs) result[name] = new Attribute(attrs[name])
+        return result
+      }
+      
+      // ::- Node types are objects allocated once per `Schema` and used to
+      // [tag](#model.Node.type) `Node` instances. They contain information
+      // about the node type, such as its name and what kind of node it
+      // represents.
+      export class NodeType {
+        constructor(name, schema, spec) {
+          // :: string
+          // The name the node type has in this schema.
+          this.name = name
+      
+          // :: Schema
+          // A link back to the `Schema` the node type belongs to.
+          this.schema = schema
+      
+          // :: NodeSpec
+          // The spec that this type is based on
+          this.spec = spec
+      
+          this.groups = spec.group ? spec.group.split(" ") : []
+          this.attrs = initAttrs(spec.attrs)
+      
+          this.defaultAttrs = defaultAttrs(this.attrs)
+      
+          // :: ContentMatch
+          // The starting match of the node type's content expression.
+          this.contentMatch = null
+      
+          // : ?[MarkType]
+          // The set of marks allowed in this node. `null` means all marks
+          // are allowed.
+          this.markSet = null
+      
+          // :: bool
+          // True if this node type has inline content.
+          this.inlineContent = null
+      
+          // :: bool
+          // True if this is a block type
+          this.isBlock = !(spec.inline || name == "text")
+      
+          // :: bool
+          // True if this is the text node type.
+          this.isText = name == "text"
+        }
+      
+        // :: bool
+        // True if this is an inline type.
+        get isInline() { return !this.isBlock }
+      
+        // :: bool
+        // True if this is a textblock type, a block that contains inline
+        // content.
+        get isTextblock() { return this.isBlock && this.inlineContent }
+      
+        // :: bool
+        // True for node types that allow no content.
+        get isLeaf() { return this.contentMatch == ContentMatch.empty }
+      
+        // :: bool
+        // True when this node is an atom, i.e. when it does not have
+        // directly editable content.
+        get isAtom() { return this.isLeaf || this.spec.atom }
+      
+        hasRequiredAttrs(ignore) {
+          for (let n in this.attrs)
+            if (this.attrs[n].isRequired && (!ignore || !(n in ignore))) return true
+          return false
+        }
+      
+        compatibleContent(other) {
+          return this == other || this.contentMatch.compatible(other.contentMatch)
+        }
+      
+        computeAttrs(attrs) {
+          if (!attrs && this.defaultAttrs) return this.defaultAttrs
+          else return computeAttrs(this.attrs, attrs)
+        }
+      
+        // :: (?Object, ?union<Fragment, Node, [Node]>, ?[Mark]) → Node
+        // Create a `Node` of this type. The given attributes are
+        // checked and defaulted (you can pass `null` to use the type's
+        // defaults entirely, if no required attributes exist). `content`
+        // may be a `Fragment`, a node, an array of nodes, or
+        // `null`. Similarly `marks` may be `null` to default to the empty
+        // set of marks.
+        create(attrs, content, marks) {
+          if (this.isText) throw new Error("NodeType.create can't construct text nodes")
+          return new Node(this, this.computeAttrs(attrs), Fragment.from(content), Mark.setFrom(marks))
+        }
+      
+        // :: (?Object, ?union<Fragment, Node, [Node]>, ?[Mark]) → Node
+        // Like [`create`](#model.NodeType.create), but check the given content
+        // against the node type's content restrictions, and throw an error
+        // if it doesn't match.
+        createChecked(attrs, content, marks) {
+          content = Fragment.from(content)
+          if (!this.validContent(content))
+            throw new RangeError("Invalid content for node " + this.name)
+          return new Node(this, this.computeAttrs(attrs), content, Mark.setFrom(marks))
+        }
+      
+        // :: (?Object, ?union<Fragment, Node, [Node]>, ?[Mark]) → ?Node
+        // Like [`create`](#model.NodeType.create), but see if it is necessary to
+        // add nodes to the start or end of the given fragment to make it
+        // fit the node. If no fitting wrapping can be found, return null.
+        // Note that, due to the fact that required nodes can always be
+        // created, this will always succeed if you pass null or
+        // `Fragment.empty` as content.
+        createAndFill(attrs, content, marks) {
+          attrs = this.computeAttrs(attrs)
+          content = Fragment.from(content)
+          if (content.size) {
+            let before = this.contentMatch.fillBefore(content)
+            if (!before) return null
+            content = before.append(content)
+          }
+          let after = this.contentMatch.matchFragment(content).fillBefore(Fragment.empty, true)
+          if (!after) return null
+          return new Node(this, attrs, content.append(after), Mark.setFrom(marks))
+        }
+      
+        // :: (Fragment) → bool
+        // Returns true if the given fragment is valid content for this node
+        // type with the given attributes.
+        validContent(content) {
+          let result = this.contentMatch.matchFragment(content)
+          if (!result || !result.validEnd) return false
+          for (let i = 0; i < content.childCount; i++)
+            if (!this.allowsMarks(content.child(i).marks)) return false
+          return true
+        }
+      
+        // :: (MarkType) → bool
+        // Check whether the given mark type is allowed in this node.
+        allowsMarkType(markType) {
+          return this.markSet == null || this.markSet.indexOf(markType) > -1
+        }
+      
+        // :: ([Mark]) → bool
+        // Test whether the given set of marks are allowed in this node.
+        allowsMarks(marks) {
+          if (this.markSet == null) return true
+          for (let i = 0; i < marks.length; i++) if (!this.allowsMarkType(marks[i].type)) return false
+          return true
+        }
+      
+        // :: ([Mark]) → [Mark]
+        // Removes the marks that are not allowed in this node from the given set.
+        allowedMarks(marks) {
+          if (this.markSet == null) return marks
+          let copy
+          for (let i = 0; i < marks.length; i++) {
+            if (!this.allowsMarkType(marks[i].type)) {
+              if (!copy) copy = marks.slice(0, i)
+            } else if (copy) {
+              copy.push(marks[i])
+            }
+          }
+          return !copy ? marks : copy.length ? copy : Mark.empty
+        }
+      
+        static compile(nodes, schema) {
+          let result = Object.create(null)
+          nodes.forEach((name, spec) => result[name] = new NodeType(name, schema, spec))
+      
+          let topType = schema.spec.topNode || "doc"
+          if (!result[topType]) throw new RangeError("Schema is missing its top node type ('" + topType + "')")
+          if (!result.text) throw new RangeError("Every schema needs a 'text' type")
+          for (let _ in result.text.attrs) throw new RangeError("The text node type should not have attributes")
+      
+          return result
+        }
+      }
+      
+      // Attribute descriptors
+      
+      class Attribute {
+        constructor(options) {
+          this.hasDefault = Object.prototype.hasOwnProperty.call(options, "default")
+          this.default = options.default
+        }
+      
+        get isRequired() {
+          return !this.hasDefault
+        }
+      }
+      
+      // Marks
+      
+      // ::- Like nodes, marks (which are associated with nodes to signify
+      // things like emphasis or being part of a link) are
+      // [tagged](#model.Mark.type) with type objects, which are
+      // instantiated once per `Schema`.
+      export class MarkType {
+        constructor(name, rank, schema, spec) {
+          // :: string
+          // The name of the mark type.
+          this.name = name
+      
+          // :: Schema
+          // The schema that this mark type instance is part of.
+          this.schema = schema
+      
+          // :: MarkSpec
+          // The spec on which the type is based.
+          this.spec = spec
+      
+          this.attrs = initAttrs(spec.attrs)
+      
+          this.rank = rank
+          this.excluded = null
+          let defaults = defaultAttrs(this.attrs)
+          this.instance = defaults && new Mark(this, defaults)
+        }
+      
+        // :: (?Object) → Mark
+        // Create a mark of this type. `attrs` may be `null` or an object
+        // containing only some of the mark's attributes. The others, if
+        // they have defaults, will be added.
+        create(attrs) {
+          if (!attrs && this.instance) return this.instance
+          return new Mark(this, computeAttrs(this.attrs, attrs))
+        }
+      
+        static compile(marks, schema) {
+          let result = Object.create(null), rank = 0
+          marks.forEach((name, spec) => result[name] = new MarkType(name, rank++, schema, spec))
+          return result
+        }
+      
+        // :: ([Mark]) → [Mark]
+        // When there is a mark of this type in the given set, a new set
+        // without it is returned. Otherwise, the input set is returned.
+        removeFromSet(set) {
+          for (var i = 0; i < set.length; i++)
+            if (set[i].type == this)
+              return set.slice(0, i).concat(set.slice(i + 1))
+          return set
+        }
+      
+        // :: ([Mark]) → ?Mark
+        // Tests whether there is a mark of this type in the given set.
+        isInSet(set) {
+          for (let i = 0; i < set.length; i++)
+            if (set[i].type == this) return set[i]
+        }
+      
+        // :: (MarkType) → bool
+        // Queries whether a given mark type is
+        // [excluded](#model.MarkSpec.excludes) by this one.
+        excludes(other) {
+          return this.excluded.indexOf(other) > -1
+        }
+      }
+      
+      // SchemaSpec:: interface
+      // An object describing a schema, as passed to the [`Schema`](#model.Schema)
+      // constructor.
+      //
+      //   nodes:: union<Object<NodeSpec>, OrderedMap<NodeSpec>>
+      //   The node types in this schema. Maps names to
+      //   [`NodeSpec`](#model.NodeSpec) objects that describe the node type
+      //   associated with that name. Their order is significant—it
+      //   determines which [parse rules](#model.NodeSpec.parseDOM) take
+      //   precedence by default, and which nodes come first in a given
+      //   [group](#model.NodeSpec.group).
+      //
+      //   marks:: ?union<Object<MarkSpec>, OrderedMap<MarkSpec>>
+      //   The mark types that exist in this schema. The order in which they
+      //   are provided determines the order in which [mark
+      //   sets](#model.Mark.addToSet) are sorted and in which [parse
+      //   rules](#model.MarkSpec.parseDOM) are tried.
+      //
+      //   topNode:: ?string
+      //   The name of the default top-level node for the schema. Defaults
+      //   to `"doc"`.
+      
+      // NodeSpec:: interface
+      //
+      //   content:: ?string
+      //   The content expression for this node, as described in the [schema
+      //   guide](/docs/guide/#schema.content_expressions). When not given,
+      //   the node does not allow any content.
+      //
+      //   marks:: ?string
+      //   The marks that are allowed inside of this node. May be a
+      //   space-separated string referring to mark names or groups, `"_"`
+      //   to explicitly allow all marks, or `""` to disallow marks. When
+      //   not given, nodes with inline content default to allowing all
+      //   marks, other nodes default to not allowing marks.
+      //
+      //   group:: ?string
+      //   The group or space-separated groups to which this node belongs,
+      //   which can be referred to in the content expressions for the
+      //   schema.
+      //
+      //   inline:: ?bool
+      //   Should be set to true for inline nodes. (Implied for text nodes.)
+      //
+      //   atom:: ?bool
+      //   Can be set to true to indicate that, though this isn't a [leaf
+      //   node](#model.NodeType.isLeaf), it doesn't have directly editable
+      //   content and should be treated as a single unit in the view.
+      //
+      //   attrs:: ?Object<AttributeSpec>
+      //   The attributes that nodes of this type get.
+      //
+      //   selectable:: ?bool
+      //   Controls whether nodes of this type can be selected as a [node
+      //   selection](#state.NodeSelection). Defaults to true for non-text
+      //   nodes.
+      //
+      //   draggable:: ?bool
+      //   Determines whether nodes of this type can be dragged without
+      //   being selected. Defaults to false.
+      //
+      //   code:: ?bool
+      //   Can be used to indicate that this node contains code, which
+      //   causes some commands to behave differently.
+      //
+      //   defining:: ?bool
+      //   Determines whether this node is considered an important parent
+      //   node during replace operations (such as paste). Non-defining (the
+      //   default) nodes get dropped when their entire content is replaced,
+      //   whereas defining nodes persist and wrap the inserted content.
+      //   Likewise, in _inserted_ content the defining parents of the
+      //   content are preserved when possible. Typically,
+      //   non-default-paragraph textblock types, and possibly list items,
+      //   are marked as defining.
+      //
+      //   isolating:: ?bool
+      //   When enabled (default is false), the sides of nodes of this type
+      //   count as boundaries that regular editing operations, like
+      //   backspacing or lifting, won't cross. An example of a node that
+      //   should probably have this enabled is a table cell.
+      //
+      //   toDOM:: ?(node: Node) → DOMOutputSpec
+      //   Defines the default way a node of this type should be serialized
+      //   to DOM/HTML (as used by
+      //   [`DOMSerializer.fromSchema`](#model.DOMSerializer^fromSchema)).
+      //   Should return a DOM node or an [array
+      //   structure](#model.DOMOutputSpec) that describes one, with an
+      //   optional number zero (“hole”) in it to indicate where the node's
+      //   content should be inserted.
+      //
+      //   For text nodes, the default is to create a text DOM node. Though
+      //   it is possible to create a serializer where text is rendered
+      //   differently, this is not supported inside the editor, so you
+      //   shouldn't override that in your text node spec.
+      //
+      //   parseDOM:: ?[ParseRule]
+      //   Associates DOM parser information with this node, which can be
+      //   used by [`DOMParser.fromSchema`](#model.DOMParser^fromSchema) to
+      //   automatically derive a parser. The `node` field in the rules is
+      //   implied (the name of this node will be filled in automatically).
+      //   If you supply your own parser, you do not need to also specify
+      //   parsing rules in your schema.
+      
+      // MarkSpec:: interface
+      //
+      //   attrs:: ?Object<AttributeSpec>
+      //   The attributes that marks of this type get.
+      //
+      //   inclusive:: ?bool
+      //   Whether this mark should be active when the cursor is positioned
+      //   at its end (or at its start when that is also the start of the
+      //   parent node). Defaults to true.
+      //
+      //   excludes:: ?string
+      //   Determines which other marks this mark can coexist with. Should
+      //   be a space-separated strings naming other marks or groups of marks.
+      //   When a mark is [added](#model.Mark.addToSet) to a set, all marks
+      //   that it excludes are removed in the process. If the set contains
+      //   any mark that excludes the new mark but is not, itself, excluded
+      //   by the new mark, the mark can not be added an the set. You can
+      //   use the value `"_"` to indicate that the mark excludes all
+      //   marks in the schema.
+      //
+      //   Defaults to only being exclusive with marks of the same type. You
+      //   can set it to an empty string (or any string not containing the
+      //   mark's own name) to allow multiple marks of a given type to
+      //   coexist (as long as they have different attributes).
+      //
+      //   group:: ?string
+      //   The group or space-separated groups to which this mark belongs.
+      //
+      //   toDOM:: ?(mark: Mark, inline: bool) → DOMOutputSpec
+      //   Defines the default way marks of this type should be serialized
+      //   to DOM/HTML. When the resulting spec contains a hole, that is
+      //   where the marked content is placed. Otherwise, it is appended to
+      //   the top node.
+      //
+      //   parseDOM:: ?[ParseRule]
+      //   Associates DOM parser information with this mark (see the
+      //   corresponding [node spec field](#model.NodeSpec.parseDOM)). The
+      //   `mark` field in the rules is implied.
+      
+      // AttributeSpec:: interface
+      //
+      // Used to [define](#model.NodeSpec.attrs) attributes on nodes or
+      // marks.
+      //
+      //   default:: ?any
+      //   The default value for this attribute, to use when no explicit
+      //   value is provided. Attributes that have no default must be
+      //   provided whenever a node or mark of a type that has them is
+      //   created.
+      
+      // ::- A document schema. Holds [node](#model.NodeType) and [mark
+      // type](#model.MarkType) objects for the nodes and marks that may
+      // occur in conforming documents, and provides functionality for
+      // creating and deserializing such documents.
+      export class Schema {
+        // :: (SchemaSpec)
+        // Construct a schema from a schema [specification](#model.SchemaSpec).
+        constructor(spec) {
+          // :: SchemaSpec
+          // The [spec](#model.SchemaSpec) on which the schema is based,
+          // with the added guarantee that its `nodes` and `marks`
+          // properties are
+          // [`OrderedMap`](https://github.com/marijnh/orderedmap) instances
+          // (not raw objects).
+          this.spec = {}
+          for (let prop in spec) this.spec[prop] = spec[prop]
+          this.spec.nodes = OrderedMap.from(spec.nodes)
+          this.spec.marks = OrderedMap.from(spec.marks)
+      
+          // :: Object<NodeType>
+          // An object mapping the schema's node names to node type objects.
+          this.nodes = NodeType.compile(this.spec.nodes, this)
+      
+          // :: Object<MarkType>
+          // A map from mark names to mark type objects.
+          this.marks = MarkType.compile(this.spec.marks, this)
+      
+          let contentExprCache = Object.create(null)
+          for (let prop in this.nodes) {
+            if (prop in this.marks)
+              throw new RangeError(prop + " can not be both a node and a mark")
+            let type = this.nodes[prop], contentExpr = type.spec.content || "", markExpr = type.spec.marks
+            type.contentMatch = contentExprCache[contentExpr] ||
+              (contentExprCache[contentExpr] = ContentMatch.parse(contentExpr, this.nodes))
+            type.inlineContent = type.contentMatch.inlineContent
+            type.markSet = markExpr == "_" ? null :
+              markExpr ? gatherMarks(this, markExpr.split(" ")) :
+              markExpr == "" || !type.inlineContent ? [] : null
+          }
+          for (let prop in this.marks) {
+            let type = this.marks[prop], excl = type.spec.excludes
+            type.excluded = excl == null ? [type] : excl == "" ? [] : gatherMarks(this, excl.split(" "))
+          }
+      
+          this.nodeFromJSON = this.nodeFromJSON.bind(this)
+          this.markFromJSON = this.markFromJSON.bind(this)
+      
+          // :: NodeType
+          // The type of the [default top node](#model.SchemaSpec.topNode)
+          // for this schema.
+          this.topNodeType = this.nodes[this.spec.topNode || "doc"]
+      
+          // :: Object
+          // An object for storing whatever values modules may want to
+          // compute and cache per schema. (If you want to store something
+          // in it, try to use property names unlikely to clash.)
+          this.cached = Object.create(null)
+          this.cached.wrappings = Object.create(null)
+        }
+      
+        // :: (union<string, NodeType>, ?Object, ?union<Fragment, Node, [Node]>, ?[Mark]) → Node
+        // Create a node in this schema. The `type` may be a string or a
+        // `NodeType` instance. Attributes will be extended
+        // with defaults, `content` may be a `Fragment`,
+        // `null`, a `Node`, or an array of nodes.
+        node(type, attrs, content, marks) {
+          if (typeof type == "string")
+            type = this.nodeType(type)
+          else if (!(type instanceof NodeType))
+            throw new RangeError("Invalid node type: " + type)
+          else if (type.schema != this)
+            throw new RangeError("Node type from different schema used (" + type.name + ")")
+      
+          return type.createChecked(attrs, content, marks)
+        }
+      
+        // :: (string, ?[Mark]) → Node
+        // Create a text node in the schema. Empty text nodes are not
+        // allowed.
+        text(text, marks) {
+          let type = this.nodes.text
+          return new TextNode(type, type.defaultAttrs, text, Mark.setFrom(marks))
+        }
+      
+        // :: (union<string, MarkType>, ?Object) → Mark
+        // Create a mark with the given type and attributes.
+        mark(type, attrs) {
+          if (typeof type == "string") type = this.marks[type]
+          return type.create(attrs)
+        }
+      
+        // :: (Object) → Node
+        // Deserialize a node from its JSON representation. This method is
+        // bound.
+        nodeFromJSON(json) {
+          return Node.fromJSON(this, json)
+        }
+      
+        // :: (Object) → Mark
+        // Deserialize a mark from its JSON representation. This method is
+        // bound.
+        markFromJSON(json) {
+          return Mark.fromJSON(this, json)
+        }
+      
+        nodeType(name) {
+          let found = this.nodes[name]
+          if (!found) throw new RangeError("Unknown node type: " + name)
+          return found
+        }
+      }
+      
+      function gatherMarks(schema, marks) {
+        let found = []
+        for (let i = 0; i < marks.length; i++) {
+          let name = marks[i], mark = schema.marks[name], ok = mark
+          if (mark) {
+            found.push(mark)
+          } else {
+            for (let prop in schema.marks) {
+              let mark = schema.marks[prop]
+              if (name == "_" || (mark.spec.group && mark.spec.group.split(" ").indexOf(name) > -1))
+                found.push(ok = mark)
+            }
+          }
+          if (!ok) throw new SyntaxError("Unknown mark type: '" + marks[i] + "'")
+        }
+        return found
+      }
+    '''
+  }
+]
+tags: [
+  "transcriptic"
+]
+isStarred: false
+isTrashed: false

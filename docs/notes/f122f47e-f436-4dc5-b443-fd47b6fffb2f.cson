@@ -1,5 +1,5 @@
 createdAt: "2018-03-13T10:50:08.800Z"
-updatedAt: "2018-03-16T08:27:13.012Z"
+updatedAt: "2018-04-05T00:13:42.897Z"
 type: "MARKDOWN_NOTE"
 folder: "d4855edc37196573049e"
 title: "2018-03-13 Antha, Transcriptic, AutoLims, & other computable workflow tools/apps/standards"
@@ -39,9 +39,11 @@ content: '''
   ## Autoprotocol & Transcriptic
   
   autoprotocol: https://github.com/autoprotocol/autoprotocol-python/blob/master/autoprotocol/protocol.py
+  
+  
   transcriptic: https://github.com/transcriptic/transcriptic/blob/master/transcriptic/english.py#L43
   
-  **thoughts**: [autoprotocol.org/specification/#protocols](http://autoprotocol.org/specification/#protocols) identifies key parameters for 19 autoprotocol `ops` or `instructions`. Didact protocol metadata should be able to model these. Port them if licensing allows. Actual code for `ops` is defined in (transcriptic/english.py)[https://github.com/transcriptic/transcriptic/blob/master/transcriptic/english.py].
+  **thoughts**: [autoprotocol.org/specification/#protocols](http://autoprotocol.org/specification/#protocols) identifies key parameters for 19 autoprotocol `ops` or `instructions`. Didact protocol metadata should be able to model these. Port them if licensing allows. Actual code for `ops` is defined in [transcriptic/english.py](https://github.com/transcriptic/transcriptic/blob/master/transcriptic/english.py).
   
   **autoprotocol "in the wild"**:
   - "simpler" example of autoprotocol https://github.com/scottbecker/transcriptic101/blob/master/Transcriptic%20101.ipynb
@@ -77,6 +79,147 @@ content: '''
   **input types** (manifest.json): https://developers.transcriptic.com/v1.0/docs/input-types
   "An input refers to an editable field on a protocol within the protocol browser, they will allow you to replace the parameters you hard-coded into the preview once the protocol is uploaded as a package to the web app."
   
+  #### example:
+  
+  ```python
+  # source
+  # blog.booleanbiotech.com/puc19_pcr_amplification.html
+  
+  # (Python 3 setup cell omitted)
+  # https://developers.transcriptic.com/docs/how-to-write-a-new-protocol
+  # https://secure.transcriptic.com/_commercial/resources?q=water
+  
+  import json
+  import autoprotocol
+  from autoprotocol.protocol import Protocol
+  p = Protocol()
+  
+  # 3 cols: 0=template+primers+mastermix, 1=primers+mastermix, 2=water
+  # 3 rows: A, B, C repeated
+  experiment_name = "puc19_m13_v1"
+  
+  inv = {}
+  inv['SensiFAST SYBR No-ROX'] = "rs17knkh7526ha"
+  inv['water'] = "rs17gmh5wafm5p"
+  inv['M13 Forward (-20)'] = "rs17tcpupe7fdh"
+  inv['M13 Reverse (-48)'] = "rs17tcph6e2qzh"
+  inv['pUC19'] = "rs17tcqmncjfsh"
+  
+  #--------------------------------------------------------
+  # Provisioning things for my PCR
+  #
+  # Provision a 96 well PCR plate (https://developers.transcriptic.com/v1.0/docs/containers)
+  # Type      Max       Dead    Safe    Capabilities                                                     Price
+  # 96-pcr    160 µL    3 µL    5 µL    pipette, sangerseq, spin, thermocycle, incubate, gel_separate    $2.49
+  #
+  pcr_plate = p.ref("pcr_plate", cont_type="96-pcr", storage="cold_4")
+  
+  #--------------------------------------------------------
+  # SYBR-including mastermix
+  # http://www.bioline.com/us/downloads/dl/file/id/2754/sensifast_sybr_no_rox_kit_manual.pdf
+  # Instructions: 10ul mastermix + 0.8ul primer (400nM) + 0.8ul primer (400nM) + <=8.4ul template (~100ng) + 20-vol H20
+  #
+  
+  #mastermix_tube = p.ref("mastermix_tube", cont_type="micro-2.0", storage="cold_20")
+  for well in ["A1", "B1", "C1", "A2", "B2", "C2"]:
+      p.provision(inv['SensiFAST SYBR No-ROX'], pcr_plate.wells(well), "10:microliter")
+  
+  
+  #--------------------------------------------------------
+  # M13 primers
+  # I choose m13 (-20) and (-48) because of similar Tm. This amplifies ~110bp including primers.
+  #
+  # 100pmol == 1ul, since Transcriptic dilutes the 1300-1900pmol into 13-19ul (depending on the primer)
+  # I want 400nM in the final 20ul according to the SensiFAST documentation (==8pmol in 20ul)
+  # 1ul primer in 12ul total equals 8pmol/ul
+  #
+  
+  # http://www.idtdna.com/pages/products/dna-rna/readymade-products/readymade-primers
+  # Name                 sequence                          Tm    Anhyd.  pmoles in 10ug
+  # M13 Forward (-20)    GTA AAA CGA CGG CCA GT            53.0  5228.5  1912.6
+  # M13 Forward (-41)    CGC CAG GGT TTT CCC AGT CAC GAC   65.5  7289.8  1371.7
+  # M13 Reverse (-27)    CAG GAA ACA GCT ATG AC            47.3  5212.5  1918.3
+  # M13 Reverse (-48)    AGC GGA TAA CAA TTT CAC ACA GG    57.2  7065.7  1415.2
+  
+  primer_tube = p.ref("primer_tube", cont_type="micro-2.0", storage="cold_20")
+  p.provision(inv['M13 Forward (-20)'], primer_tube.wells(0), "1:microliter") # fwd -20
+  p.provision(inv['M13 Reverse (-48)'], primer_tube.wells(0), "1:microliter") # rev -48
+  p.provision(inv['water'], primer_tube.wells(0), "10:microliter") # water
+  
+  
+  #--------------------------------------------------------
+  # pUC19
+  # 1000ug/ml -> 1ul = 1ug == 1000ng. Add 1ul to 49ul to get ~20ng/ul
+  # Then I can transfer 5ul to get 100ng total
+  #
+  template_tube = p.ref("template_tube", cont_type="micro-2.0", storage="cold_20")
+  p.provision(inv['pUC19'], template_tube.wells(0), "1:microliter")
+  p.provision(inv['water'], template_tube.wells(0), "49:microliter") # water
+  
+  
+  #--------------------------------------------------------
+  # Move all the reagents into the pcr plate
+  # The "dispense" command does not work because it needs >=10ul per dispense
+  # in increments of 5ul
+  #
+  for wells, ul in (["A1","B1","C1"], 4), (["A2", "B2", "C2"], 9), (["A3", "B3", "C3"], 20):
+      for well in wells:
+          p.provision(inv['water'], pcr_plate.wells(well), "{}:microliter".format(ul))
+  
+  p.transfer(template_tube.wells(0), pcr_plate.wells(["A1", "B1", "C1"]), "5:microliter")
+  p.transfer(primer_tube.wells(0), pcr_plate.wells(["A1", "B1", "C1", "A2", "B2", "C2"]), "1:microliter")
+  
+  #--------------------------------------------------------
+  # Thermocycle, with a hot start (95C for 2m)
+  # Based on http://www.bioline.com/us/downloads/dl/file/id/2754/sensifast_sybr_no_rox_kit_manual.pdf
+  # I also found http://www.environmental-microbiology.de/pdf_files/M13PCR_13jan2014.pdf
+  # p.seal before thermocycling is enforced by transcriptic
+  #
+  p.seal(pcr_plate)
+  p.thermocycle(pcr_plate, [{
+        "cycles": 1, "steps": [{
+            "temperature": "95:celsius",
+            "duration": "2:minute"}]
+      }, {
+        "cycles": 40, "steps": [{
+            "temperature": "95:celsius",
+            "duration": "5:second"}, {
+            "temperature": "60:celsius",
+            "duration": "20:second"}, {
+            "temperature": "72:celsius",
+            "duration": "15:second", "read": True}]
+      }],
+      volume="20:microliter", # volume is optional
+      dataref="qpcr_{}".format(experiment_name),
+      # Dyes to use for qPCR must be specified (tells transcriptic what aborbance to use?)
+      dyes={"SYBR": ["A1", "B1", "C1", "A2", "B2", "C2", "A3", "B3", "C3"]},
+      # standard melting curve parameters
+      melting_start="65:celsius",
+      melting_end="95:celsius",
+      melting_increment="0.5:celsius",
+      melting_rate="5:second")
+  
+  #--------------------------------------------------------
+  # Run a gel
+  # agarose(8,0.8%): 8 lanes, 0.8% agarose 10 minutes recommended
+  # 10 microliters is used in the example documentation
+  # ladder1: References at 100bp, 250bp, 500bp, 1000bp, and 2000bp.
+  # The gel already includes SYBR green
+  #
+  p.gel_separate(pcr_plate.wells(["A1", "B1", "C1", "A2", "B2", "C2", "A3", "B3"]),
+                 "10:microliter", "agarose(8,0.8%)",
+                 "ladder1", "10:minute", "gel_{}".format(experiment_name))
+  
+  
+  #--------------------------------------------------------
+  # Analyze and output the protocol
+  #
+  jprotocol = json.dumps(p.as_dict(), indent=2)
+  print(jprotocol)
+  open("protocol.json",'w').write(jprotocol)
+  uprint("Analyze protocol")
+  !echo '{jprotocol}' | transcriptic analyze
+  ```
   
   ---
   

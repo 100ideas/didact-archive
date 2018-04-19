@@ -1,0 +1,682 @@
+createdAt: "2018-04-04T07:15:56.508Z"
+updatedAt: "2018-04-04T10:43:16.687Z"
+type: "MARKDOWN_NOTE"
+folder: "d4855edc37196573049e"
+title: "2018-03-3 Common Workflow Language; FaaSlang type system"
+content: '''
+  # 2018-03-3 Common Workflow Language; FaaSlang type system
+  
+  
+  #### Common Workflow Language
+  
+  Common Workflow Language User Guide
+  [Common Workflow Language User Guide: Custom Types](http://www.commonwl.org/user_guide/19-custom-types/)
+  [user_guide/19-custom-types.md at gh-pages · common-workflow-language/user_guide · GitHub](https://github.com/common-workflow-language/user_guide/blob/gh-pages/_episodes/19-custom-types.md)
+  
+  # Writing Workflows
+  >
+  > **Questions**
+  >
+  > -   How do I connect tools together into a workflow?
+  >
+  > **Objectives**
+  >
+  > -   Learn how to construct workflows from multiple CWL tool descriptions.
+  >
+  This workflow extracts a java source file from a tar file and then compiles it.
+  
+  *1st-workflow.cwl*
+  
+  ``` highlight
+  #!/usr/bin/env cwl-runner
+  
+  cwlVersion: v1.0
+  class: Workflow
+  inputs:
+    inp: File
+    ex: string
+  
+  outputs:
+    classout:
+      type: File
+      outputSource: compile/classfile
+  
+  steps:
+    untar:
+      run: tar-param.cwl
+      in:
+        tarfile: inp
+        extractfile: ex
+      out: [example_out]
+  
+    compile:
+      run: arguments.cwl
+      in:
+        src: untar/example_out
+      out: [classfile]
+  ```
+  
+  Use a JSON object in a separate file to describe the input of a run:
+  
+  *1st-workflow-job.yml*
+  
+  ``` highlight
+  inp:
+    class: File
+    path: hello.tar
+  ex: Hello.java
+  ```
+  
+  Now invoke `cwl-runner` with the tool wrapper and the input object on the command line:
+  
+  ``` highlight
+  $ echo "public class Hello {}" > Hello.java && tar -cvf hello.tar Hello.java
+  $ cwl-runner 1st-workflow.cwl 1st-workflow-job.yml
+  [job untar] /tmp/tmp94qFiM$ tar xf /home/example/hello.tar Hello.java
+  [step untar] completion status is success
+  [job compile] /tmp/tmpu1iaKL$ docker run -i --volume=/tmp/tmp94qFiM/Hello.java:/var/lib/cwl/job301600808_tmp94qFiM/Hello.java:ro --volume=/tmp/tmpu1iaKL:/var/spool/cwl:rw --volume=/tmp/tmpfZnNdR:/tmp:rw --workdir=/var/spool/cwl --read-only=true --net=none --user=1001 --rm --env=TMPDIR=/tmp java:7 javac -d /var/spool/cwl /var/lib/cwl/job301600808_tmp94qFiM/Hello.java
+  [step compile] completion status is success
+  [workflow 1st-workflow.cwl] outdir is /home/example
+  Final process status is success
+  {
+    "classout": {
+      "location": "/home/example/Hello.class",
+      "checksum": "sha1$e68df795c0686e9aa1a1195536bd900f5f417b18",
+      "class": "File",
+      "size": 416
+    }
+  }
+  ```
+  
+  What’s going on here? Let’s break it down:
+  
+  ``` highlight
+  cwlVersion: v1.0
+  class: Workflow
+  ```
+  
+  The `cwlVersion` field indicates the version of the CWL spec used by the document. The `class` field indicates this document describes a workflow.
+  
+  ``` highlight
+  inputs:
+    inp: File
+    ex: string
+  ```
+  
+  The `inputs` section describes the inputs of the workflow. This is a list of input parameters where each parameter consists of an identifier and a data type. These parameters can be used as sources for input to specific workflows steps.
+  
+  ``` highlight
+  outputs:
+    classout:
+      type: File
+      outputSource: compile/classfile
+  ```
+  
+  The `outputs` section describes the outputs of the workflow. This is a list of output parameters where each parameter consists of an identifier and a data type. The `outputSource` connects the output parameter `classfile` of the `compile` step to the workflow output parameter `classout`.
+  
+  ``` highlight
+  steps:
+    untar:
+      run: tar-param.cwl
+      in:
+        tarfile: inp
+        extractfile: ex
+      out: [example_out]
+  ```
+  
+  The `steps` section describes the actual steps of the workflow. In this example, the first step extracts a file from a tar file, and the second step compiles the file from the first step using the java compiler. Workflow steps are not necessarily run in the order they are listed, instead the order is determined by the dependencies between steps (using `source`). In addition, workflow steps which do not depend on one another may run in parallel.
+  
+  The first step, `untar` runs `tar-param.cwl` (described previously in [Parameter references](../06-params/)). This tool has two input parameters, `tarfile` and `extractfile` and one output parameter `example_out`.
+  
+  The `in` section of the workflow step connects these two input parameters to the inputs of the workflow, `inp` and `ex` using `source`. This means that when the workflow step is executed, the values assigned to `inp` and `ex` will be used for the parameters `tarfile` and `extractfile` in order to run the tool.
+  
+  The `out` section of the workflow step lists the output parameters that are expected from the tool.
+  
+  ``` highlight
+    compile:
+      run: arguments.cwl
+      in:
+        src: untar/example_out
+      out: [classfile]
+  ```
+  
+  The second step `compile` depends on the results from the first step by connecting the input parameter `src` to the output parameter of `untar` using `untar/example_out`. The output of this step `classfile` is connected to the `outputs` section for the Workflow, described above.
+  
+  > ## Key Points
+  >
+  > -   Each step in a workflow must have its own CWL description.
+  >
+  > -   Top level inputs and outputs of the workflow are described in the `inputs` and `outputs` fields respectively.
+  >
+  > -   The steps are specified under `steps`.
+  >
+  > -   Execution order is determined by the connections between steps.
+  >
+  
+  
+  ---
+  title: "Custom Types"
+  teaching: 10
+  exercises: 0
+  questions:
+  - "How do I create and import my own custom types into a CWL description?"
+  objectives:
+  - "Learn how to write custom CWL object types."
+  - "Learn how to import these custom objects into a tool description."
+  keypoints:
+  - "You can create your own custom types to load into descriptions."
+  - "These custom types allow the user to configure the behaviour of a tool
+     without tinkering directly with the tool description."
+  - "Custom types are described in separate YAML files and imported as needed."
+  ---
+  
+  Sometimes you may want to write your own custom types for use and reuse in CWL
+  descriptions. Use of such custom types can reduce redundancy between multiple
+  descriptions that all use the same type, and also allow for additional
+  customisation/configuration of a tool/analysis without the need to fiddle with
+  the CWL description directly.
+  
+  The example below is a CWL description of the [biom convert format][biom] tool for
+  converting a standard biom table file to hd5 format.
+  
+  *custom-types.cwl*
+  
+  ```cwl
+  #!/usr/bin/env cwl-runner 
+  cwlVersion: v1.0
+  class: CommandLineTool
+  
+  requirements:
+    InlineJavascriptRequirement: {}
+    ResourceRequirement:
+      coresMax: 1
+      ramMin: 100  # just a default, could be lowered
+    SchemaDefRequirement:
+      types:
+        - $import: biom-convert-table.yaml
+  
+  hints:
+    DockerRequirement:
+      dockerPull: 'quay.io/biocontainers/biom-format:2.1.6--py27_0'
+    SoftwareRequirement:
+      packages:
+        biom-format:
+          specs: [ "https://doi.org/10.1186/2047-217X-1-7" ]
+          version: [ "2.1.6" ]
+  
+  inputs:
+    biom:
+      type: File
+      format: edam:format_3746  # BIOM
+      inputBinding:
+        prefix: --input-fp
+    table_type:
+      type: biom-convert-table.yaml#table_type
+      inputBinding:
+        prefix: --table-type
+  
+    header_key:
+      type: string?
+      doc: |
+        The observation metadata to include from the input BIOM table file when
+        creating a tsv table file. By default no observation metadata will be
+        included.
+      inputBinding:
+        prefix: --header-key
+  
+  baseCommand: [ biom, convert ]
+  
+  arguments:
+    - valueFrom: $(inputs.biom.nameroot).hdf5  
+      prefix: --output-fp
+    - --to-hdf5
+  
+  outputs:
+    result:
+      type: File
+      outputBinding: { glob: "$(inputs.biom.nameroot)*" }
+  
+  $namespaces:
+    edam: http://edamontology.org/
+    s: http://schema.org/
+  
+  $schemas:
+    - http://edamontology.org/EDAM_1.16.owl
+    - https://schema.org/docs/schema_org_rdfa.html
+  
+  s:license: "https://www.apache.org/licenses/LICENSE-2.0"
+  s:copyrightHolder: "EMBL - European Bioinformatics Institute"
+  ```
+  
+  *custom-types.yml*
+  ```yaml
+  biom:
+      class: File
+      format: http://edamontology.org/format_3746
+      path: rich_sparse_otu_table.biom
+  table_type: OTU table
+  ```
+  
+  ___Note:___ To follow the example below, you need to download the example input file, *rich_sparse_otu_table.biom*. The file is available from [https://github.com/common-workflow-language/user_guide/raw/gh-pages/_includes/cwl/rich_sparse_otu_table.biom](https://github.com/common-workflow-language/user_guide/raw/gh-pages/_includes/cwl/19-custom-types/rich_sparse_otu_table.biom) and can be downloaded e.g. via `wget`:
+  
+  ~~~
+  wget https://github.com/common-workflow-language/user_guide/raw/gh-pages/_includes/cwl/rich_sparse_otu_table.biom
+  ~~~
+  
+  ```cwl
+  {
+       "id":"w00asdt",
+       "format": "1.0.0",
+       "format_url": "http://biom-format.org",
+       "type": "OTU table",
+       "generated_by": "QIIME revision XYZ",
+       "date": "2011-12-19T19:00:00",
+       "rows":[
+          {"id":"GG_OTU_1", "metadata":{"taxonomy":["k__Bacteria", "p__Proteobacteria", "c__Gammaproteobacteria", "o__Enterobacteriales", "f__Enterobacteriaceae", "g__Escherichia", "s__"]}},
+          {"id":"GG_OTU_2", "metadata":{"taxonomy":["k__Bacteria", "p__Cyanobacteria", "c__Nostocophycideae", "o__Nostocales", "f__Nostocaceae", "g__Dolichospermum", "s__"]}},
+          {"id":"GG_OTU_3", "metadata":{"taxonomy":["k__Archaea", "p__Euryarchaeota", "c__Methanomicrobia", "o__Methanosarcinales", "f__Methanosarcinaceae", "g__Methanosarcina", "s__"]}},
+          {"id":"GG_OTU_4", "metadata":{"taxonomy":["k__Bacteria", "p__Firmicutes", "c__Clostridia", "o__Halanaerobiales", "f__Halanaerobiaceae", "g__Halanaerobium", "s__Halanaerobiumsaccharolyticum"]}},
+          {"id":"GG_OTU_5", "metadata":{"taxonomy":["k__Bacteria", "p__Proteobacteria", "c__Gammaproteobacteria", "o__Enterobacteriales", "f__Enterobacteriaceae", "g__Escherichia", "s__"]}}
+          ],
+       "columns":[
+          {"id":"Sample1", "metadata":{
+                                   "BarcodeSequence":"CGCTTATCGAGA",
+                                   "LinkerPrimerSequence":"CATGCTGCCTCCCGTAGGAGT",
+                                   "BODY_SITE":"gut",
+                                   "Description":"human gut"}},
+          {"id":"Sample2", "metadata":{
+                                   "BarcodeSequence":"CATACCAGTAGC",
+                                   "LinkerPrimerSequence":"CATGCTGCCTCCCGTAGGAGT",
+                                   "BODY_SITE":"gut",
+                                   "Description":"human gut"}},
+          {"id":"Sample3", "metadata":{
+                                   "BarcodeSequence":"CTCTCTACCTGT",
+                                   "LinkerPrimerSequence":"CATGCTGCCTCCCGTAGGAGT",
+                                   "BODY_SITE":"gut",
+                                   "Description":"human gut"}},
+          {"id":"Sample4", "metadata":{
+                                   "BarcodeSequence":"CTCTCGGCCTGT",
+                                   "LinkerPrimerSequence":"CATGCTGCCTCCCGTAGGAGT",
+                                   "BODY_SITE":"skin",
+                                   "Description":"human skin"}},
+          {"id":"Sample5", "metadata":{
+                                   "BarcodeSequence":"CTCTCTACCAAT",
+                                   "LinkerPrimerSequence":"CATGCTGCCTCCCGTAGGAGT",
+                                   "BODY_SITE":"skin",
+                                   "Description":"human skin"}},
+          {"id":"Sample6", "metadata":{
+                                   "BarcodeSequence":"CTAACTACCAAT",
+                                   "LinkerPrimerSequence":"CATGCTGCCTCCCGTAGGAGT",
+                                   "BODY_SITE":"skin",
+                                   "Description":"human skin"}}
+          ],
+       "matrix_type": "sparse",
+       "matrix_element_type": "int",
+       "shape": [5, 6], 
+       "data":[[0,2,1],
+               [1,0,5],
+               [1,1,1],
+               [1,3,2],
+               [1,4,3],
+               [1,5,1],
+               [2,2,1],
+               [2,3,4],
+               [2,5,2],
+               [3,0,2],
+               [3,1,1],
+               [3,2,1],
+               [3,5,1],
+               [4,1,1],
+               [4,2,1]
+              ]
+      }
+  ```
+  
+  
+  On line 34, in `inputs:table_type`, a list of allowable table options to be used in the
+  table conversion are imported as a custom object:
+  
+  ```
+  inputs:
+    biom:
+      type: File
+      format: edam:format_3746  # BIOM
+      inputBinding:
+        prefix: --input-fp
+    table_type:
+      type: biom-convert-table.yaml#table_type
+      inputBinding:
+        prefix: --table-type
+  ```
+  {: .source}
+  
+  The reference to a custom type is a combination of the name of the file in which
+  the object is defined (`biom-convert-table.yaml`) and the name of the object
+  within that file (`table_type`) that defines the custom type. In this case the `symbols`
+  array from the imported `biom-convert-table.yaml` file define the allowable table options.
+  For example, in custom-types.yml, we pass `OTU table` as an `input` that 
+  tells the tool to create an OTU table in hd5 format. 
+  
+  The contents of the YAML file describing the custom type are given below:
+  
+  ```yaml
+  type: enum
+  name: table_type
+  label: The type of the table to produce
+  symbols:
+    - OTU table
+    - Pathway table
+    - Function table
+    - Ortholog table
+    - Gene table
+    - Metabolite table
+    - Taxon table
+    - Table
+  ```
+  
+  In order for the custom type to be used in the CWL description, it must be
+  imported. Imports are described in `requirements:SchemaDefRequirement`, as
+  below in the example `custom-types.cwl` description:
+  
+  ```
+  requirements:
+    InlineJavascriptRequirement: {}
+    ResourceRequirement:
+      coresMax: 1
+      ramMin: 100
+    SchemaDefRequirement:
+      types:
+        - $import: biom-convert-table.yaml
+  ```
+  {: .source}
+  
+  Note also that the author of this CWL description has also included
+  `ResourceRequirement`s, specifying the minimum amount of RAM and number of cores
+  required for the tool to run successfully, as well as details of the version of
+  the software that the description was written for and other useful metadata.
+  These features are discussed further in other chapters of this user guide.
+  
+  [biom]: http://biom-format.org/
+  
+  ---
+  
+  ## FaaSlang
+  
+  [GitHub - faaslang/faaslang: FaaSlang defines FaaS execution semantics and type-safety mechanisms](https://github.com/faaslang/faaslang/)
+  
+  [Towards a Type System for Containers and AWS Lambda to Avoid Failures [pdf] | Hacker News](https://news.ycombinator.com/item?id=16746315)
+  
+  ![2018 Meiklejohn Verifying Interfaces Between Container-Based Components.pdf](/:storage/0.ayx6kvoibm.pdf)
+  
+  Take a current example of an AWS Lambda function (A);
+  
+  ```js
+  exports.handler = (event, context, callback) => {
+    let myVar = event.myVar;
+    let requiredVar = event.requiredVar;
+    myVar = myVar === undefined ? 1 : myVar;
+    callback(null, 'Hello from Lambda!');
+  };
+  ```
+  Or a Microsoft Azure function (B);
+  ```js
+  module.exports = function (context, req) {
+    let myVar = req.query.myVar || req.body && req.body.myVar;
+    let requiredVar = req.query.requiredVar || req.body && req.body.requiredVar;
+    myVar = myVar === undefined ? 1 : myVar;
+    context.res = {body: 'Hello from Microsoft Azure!'};
+    context.done();
+  }
+  ```
+  FaaSlang instead defines the Node.js function footprint;
+  
+  ```js
+  /**
+  * @param {Number} myVar A number
+  * @param {String} requiredVar must be a string!
+  * @returns {String}
+  */
+  module.exports = (myVar = 1, requiredVar, context, callback) => {
+    callback(null, 'Hello from FaaSlang-compliant service vendor.');
+  };
+  ```
+  Where comments are used as part of the semantic definition for type-safety (if they can't be inferred from defaults), expected parameters can be specifically defined, and you still have an optional context object for more robust execution (argument overloading, etc.)
+  
+  #### FaaSlang Resource Definition
+  
+  A FaaSlang definition is a definition.json file that respects the following format.
+  
+  Given a function like this (filename my_function.js):
+  
+  ```js
+  /**
+  * This is my function, it likes the greek alphabet
+  * @param {String} alpha Some letters, I guess
+  * @param {Number} beta And a number
+  * @param {Boolean} gamma True or false?
+  * @returns {Object} some value
+  */
+  module.exports = async function my_function (alpha, beta = 2, gamma, context) {
+    /* your code */
+  };
+  ```
+  You would provide a function definition that looks like this:
+  
+  ```js
+  {
+    "name": "my_function",
+    "format": {
+      "language": "nodejs",
+      "async": true
+    },
+    "description": "This is my function, it likes the greek alphabet",
+    "bg": {
+      "mode": "info",
+      "value": ""
+    },
+    "charge": 1,
+    "context": null,
+    "params": [
+      {
+        "name": "alpha",
+        "type": "string",
+        "description": "Some letters, I guess"
+      },
+      {
+        "name": "beta",
+        "type": "number",
+        "defaultValue": 2,
+        "description": "And a number"
+      },
+      {
+        "name": "gamma",
+        "type": "boolean",
+        "description": "True or false?"
+      }
+    ],
+    "returns": {
+      "type": "object",
+      "description": "some value"
+    }
+  }
+  ```
+  This definition is *extensible*, meaning you can add additional fields to it,
+  but it **must** obey this schema.
+  
+  A definition must implement the following fields;
+  
+  | Field | Definition |
+  | ----- | ---------- |
+  | name | A user-readable function name (used to execute the function), must match `/[A-Z][A-Z0-9_]*/i` |
+  | format | An object requiring a `language` field, along with any implementation details |
+  | description | A brief description of what the function does, can be empty (`""`) |
+  | bg | An object containing "mode" and "value" parameters specifying the behavior of function responses when executed in the background |
+  | charge | An integer between 0 and 100 defining the cost (arbitrary units) to run this function, charged to authenticated users |
+  | params | An array of `NamedParameter`s, representing function arguments
+  | returns | A `Parameter` without a `defaultValue` representing function return value |
+  
+  ## Context Definition
+  
+  If the function does not access execution context details, this should always
+  be null. If it is an object, it indicates that the function *does* access
+  context details (i.e. `remoteAddress`, http headers, etc. - see [Context](#context)).
+  
+  This object **does not have to be empty**, it can contain vendor-specific
+  details; for example `"context": {"user": ["id", "email"]}` may indicate
+  that the execution context specifically accesses authenticated user id and email
+  addresses.
+  
+  ## Parameters
+  
+  Parameters have the following format;
+  
+  | Field | Required | Definition |
+  | ----- | -------- | ---------- |
+  | name | NamedParameter Only | The name of the Parameter, must match `/[A-Z][A-Z0-9_]*/i` |
+  | type | yes | A string representing a valid FaaSlang type |
+  | description | yes | A short description of the parameter, can be empty string (`""`) |
+  | defaultValue | no | Must match the specified type, **if not provided this parameter is required** |
+  
+  ### Constraints
+  
+  The **first parameter can never be of type "Object"**. This is to ensure
+  request consistency with generic calls (i.e. support for argument overloading)
+  across all language implementations.
+  
+  ### Types
+  
+  As FaaSlang is intended to be polyglot, functions defined with it must have
+  a strongly typed signature. Not all types are guaranteed to be consumable in
+  the same way in every language, and we will continue to define specifications
+  for how each language should interface with FaaSlang types. At present,
+  the types are a limited superset of JSON values.
+  
+  | Type | Definition | Example Input Values (JSON) |
+  | ---- | ---------- | -------------- |
+  | boolean | True or False | `true` or `false` |
+  | string | Basic text or character strings | `"hello"`, `"GOODBYE!"` |
+  | number | Any double-precision [Floating Point](https://en.wikipedia.org/wiki/IEEE_floating_point) value | `2e+100`, `1.02`, `-5` |
+  | float | Alias for `number` | `2e+100`, `1.02`, `-5` |
+  | integer | Subset of `number`, integers between `-2^53 + 1` and `+2^53 - 1` (inclusive) | `0`, `-5`, `2000` |
+  | object | Any JSON-serializable Object | `{}`, `{"a":true}`, `{"hello":["world"]}` |
+  | object.http | An object representing an HTTP Response. Accepts `headers`, `body` and `statusCode` keys | `{"body": "Hello World"}`, `{"statusCode": 404, "body": "not found"}`, `{"headers": {"Content-Type": "image/png"}, "body": new Buffer(...)}` |
+  | array | Any JSON-serializable Array | `[]`, `[1, 2, 3]`, `[{"a":true}, null, 5]` |
+  | buffer | Raw binary octet (byte) data representing a file | `{"_bytes": [8, 255]}` or `{"_base64": "d2h5IGRpZCB5b3UgcGFyc2UgdGhpcz8/"}` |
+  | any | Any value mentioned above | `5`, `"hello"`, `[]` |
+  
+  ### Type Conversion
+  
+  The `buffer` type will automatically be converted from any `object` with a
+  **single key-value pair matching the footprints** `{"_bytes": []}` or `{"_base64": ""}`.
+  
+  Otherwise, parameters provided to a function are expected to match their
+  defined types. Requests made over HTTP via query parameters or POST data
+  with type `application/x-www-form-urlencoded` will be automatically
+  converted from strings to their respective expected types, when possible
+  (see [FaaSlang Resource Requests](#faaslang-resource-requests) below):
+  
+  | Type | Conversion Rule |
+  | ---- | --------------- |
+  | boolean | `"t"` and `"true"` become `true`, `"f"` and `"false"` become `false`, otherwise **do not convert** |
+  | string | No conversion |
+  | number | Determine float value, if NaN **do not convert**, otherwise convert |
+  | float | Determine float value, if NaN **do not convert**, otherwise convert |
+  | integer | Determine float value, if NaN **do not convert**, may fail integer type check if not in range |
+  | object | Parse as JSON, if invalid **do not convert**, object may fail type check (array, buffer) |
+  | object.http | Parse as JSON, if invalid **do not convert**, object may fail type check (array, buffer) |
+  | array | Parse as JSON, if invalid **do not convert**, object may fail type check (object, buffer) |
+  | buffer | Parse as JSON, if invalid **do not convert**, object may fail type check (object, array) |
+  | any | No conversion |
+  
+  ### Nullability
+  
+  All types are nullable, but **nullability can only be specified** by setting
+  `"defaultValue": null` in the `NamedParameter` definition. That is to say,
+  if a default value is provided, the type is no longer nullable.
+  
+  ### Setting HTTP headers
+  
+  The FaaSlang specification is not intended to be solely used over HTTP, though
+  if used over HTTP with a provided callback method, **the third parameter passed
+  to callback should be an Object representing HTTP Header key-value pairs**.
+  
+  For example, to return an image that's of type `image/png`...
+  
+  ```javascript
+  module.exports = (imageName, callback) => {
+  
+    // fetch image, returns a buffer
+    let png = imageName === 'cat' ?
+      fs.readFileSync(`/images/kitty.png`) :
+      fs.readFileSync(`/images/no-image.png`);
+  
+    // Forces image/png over HTTP requests, default
+    //  for buffer would otherwise be application/octet-stream
+    return callback(null, png, {'Content-Type': 'image/png'});
+  
+  };
+  ```
+  
+  You can use the third parameter **only when a callback ends the function**,
+  i.e. *not for use with async functions*. This can be used to serve any type
+  of content via HTTP, set cache details (E-Tag header), etc.
+  
+  ## FaaSlang Resource Requests
+  
+  FaaSlang-compliant requests *must* complete the following steps;
+  
+  1. Ensure the **Resource Definition** is valid and compliant, either on storage
+      or accession.
+  1. Performs a handshake (i.e. HTTP) with initial request details
+  1. Accept an `Array`, `Object` or a string of URLencoded variables
+  1. If over HTTP and query parameters present, query parameters used as
+     URL encoded variables
+  1. If over HTTP POST and query parameters present, reject requests that try to
+     specify a POST body as well with a `ClientError`
+  1. If over HTTP POST, requests **must** include a `Content-Type` header or
+     a `ClientError` is immediately returned
+  1. If over HTTP POST, `Content-Type` **must** be `application/json` for `Array`
+     or `Object` data, or `application/x-www-form-urlencoded` for string data or
+     a `ClientError` is immediately returned
+  1. If `application/x-www-form-urlencoded` values are provided (either via POST
+     body or query parameters), convert types based on [Type Conversion](#type-conversion)
+     and knowledge of the function definition and create an `Object`
+  1. If `Array`: Parameters will be checked for type consistency in the order of
+     the definition `params`
+  1. If `Object`: Parameters will be checked for type consistency based on names
+     of the definition `params`
+  1. If any inconsistencies are found, cease execution and immediately return a
+     `ParameterError`
+  1. If a parameter has no defaultValue specified and is not provided, immediately
+     return a `ParameterError`
+  1. Try to execute the function, if the function fails to parse or is not valid,
+     immediately return a `FatalError`
+  1. If a function hits a specified timeout (execution time limit), immediately
+     return a `FatalError`
+  1. If a function returns an error (via callback) or one is thrown and not caught,
+     immediately return a `RuntimeError`
+  1. If function returns inconsistent response (does not match `returns` type),
+     immediately return a `ValueError`
+  1. If no errors are encountered, return the value to the client
+  1. If over HTTP and `content-type` is not being overloaded (i.e. developer
+     specified through a vendor-specific mechanism), return `buffer` type data as
+     `application/octet-stream` and any other values as `application/json`.
+  
+  ### Context
+  
+  Every function intended to be consumed via FaaSlang has the option to specify
+  an *optional* magic `context` parameter that receives vendor-specific
+  information about the function execution context - for example, if consumed over
+  HTTP, header details. FaaSlang definitions must specify whether or not they
+  consume a `context` object. Context objects are extensible but **MUST** contain
+  the following fields;
+  
+  | Field | Definition |
+  | ----- | ---------- |
+  | params | An `object` mapping called parameter names to their values |
+  | http | `null` if not accessed via http, otherwise an `object` |
+  | http.headers | If accessed via HTTP, an `object` containing header values |
+'''
+tags: []
+isStarred: false
+isTrashed: false
