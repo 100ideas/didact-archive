@@ -1,0 +1,33 @@
+createdAt: "2018-05-04T23:20:11.320Z"
+updatedAt: "2018-05-10T04:31:47.495Z"
+type: "MARKDOWN_NOTE"
+folder: "d4855edc37196573049e"
+title: "2018-05-04 stencila"
+content: '''
+  2018-05-04 stencila 
+  
+  [alpha hosted build Stencila Project](http://builds.stenci.la/stencila/update-to-latest-texture-and-work-on-examples-2018-01-24-309b791/examples/index.html?example=publication)
+  
+  [Stencila - An open source office suite for reproducible research](https://stenci.la/learn/getting-started/installation.html)
+  
+  [Reproducible science for people who don’t code – Michael Aufreiter (stencila dev) – Medium](https://medium.com/@_mql/reproducible-science-for-people-who-dont-code-5850abe806db)
+  
+  
+  ---
+  
+  ### interface
+  
+  #### spreadsheet <-> narrative hypertext
+  ![stencila 1.png](/:storage/0.cwziid5w6xi.png)
+  
+  #### dynamicish forms / document db
+  ![stencila 2.png](/:storage/0.le7f125wcua.png)
+  ![stencila 3.png](/:storage/0.iijzo5ckbes.png)
+  
+  #### stencila landing page
+  ![stencila website screenshot.png](/:storage/0.ouz40j834zh.png)
+  ![stencila website screenshot 2.png](/:storage/0.ciep6087r9h.png)
+'''
+tags: []
+isStarred: false
+isTrashed: false

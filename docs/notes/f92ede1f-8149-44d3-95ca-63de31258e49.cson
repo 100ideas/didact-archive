@@ -1,0 +1,177 @@
+createdAt: "2018-05-01T23:52:56.760Z"
+updatedAt: "2018-05-02T00:13:44.704Z"
+type: "MARKDOWN_NOTE"
+folder: "d4855edc37196573049e"
+title: "JSON-LD in HTML5 "
+content: '''
+  # JSON-LD in HTML5 <head>
+  
+  [JSON-LD - WordLift Blog](https://wordlift.io/blog/en/entity/json-ld/)
+  
+  ### What is JSON-LD?
+  
+  JSON-LD is **a lightweight <a href="https://wordlift.io/blog/en/entity/linked-data/" class="wl-entity-page-link">Linked Data</a> format to easily read and write structured data** on the web using open vocabularies like schema.org. Recommended by the <a href="https://wordlift.io/blog/en/entity/world-wide-web/" class="wl-entity-page-link">World Wide Web</a> Consortium, JSON-LD is the heir of the JSON format and allows linked data to operate in a Web-scale environment. The idea behind this notation is to provide search engines with *contextual information *about a web page using semantic web technologies. This helps to improve the match between the intent of the searcher and the content being published.
+  
+  ### How can I use JSON-LD on my website?
+  
+  JSON has been traditionally used by UX designers to feed widgets with data. With the advent of JSON-LD, developers can reuse this same data structures to create new front-end UI widgets as well as feeding search engine crawlers with the metadata that describe the exact meaning of page’s content.
+  
+  JSON-LD uses the vocabulary of <a href="https://wordlift.io/blog/en/entity/schema-org/" class="wl-entity-page-link">Schema.org</a> to describe what a web page is about. A presentation layer can be added with custom UI elements developed in either [Polymer](https://www.polymer-project.org/) or [React](https://facebook.github.io/react/) components. 
+  
+  ### Linked Data
+  
+  There are four simple principles to follow when publishing data on the web (and yes, structured data is open data as it is fully accessible).
+  
+  1. Use URIs as names for things (this is the unique identifier that we introduced above)
+  2. Use HTTP URIs so that people can look up those names (this means that the ID of every entity shall be accessible via HTTP URI)
+  3. When someone looks up a URI, provide useful information, using the standards (Behind these URIs we need to publish data using a linked data standard called RDF)
+  4. Include links to other URIs. so that they can discover more things (and here is where we need to add owl:sameAs property).
+  
+  
+  Linked data is a method for publishing [structured data](https://wordlift.io/blog/en/entity/structured-data/) using vocabularies like schema.org that can be connected together and interpreted by machines.
+  
+  Using linked data, statements encoded in [triples](https://wordlift.io/blog/en/entity/triple/) can be spread across different websites. On Website A we can present the entity Jason and the fact that he knows Marie. On website B we can provide all the information about Marie  and on the Website C we can find information about Marie’s birthplace.
+  
+  ![linked-data-knowledge.png](/:storage/0.0owhhzf80fcq.png)
+  
+  Each page contains the structured data to describe an entity and the link to the entity that could be described on a different website.
+  
+  Back in 2006 Tim Berners-Lee described linked data as follows:
+  
+  > The Semantic Web isn’t just about putting data on the web. It is about making links, so that a person or machine can explore the web of data.  With linked data, when you have some of it, you can find other, related, data.
+  
+  In computing linked data describes a method of publishing and linking data coming from heterogeneous data sources that can be interlinked and shared.
+  
+  Linked Data builds upon standard Web technologies such as HTTP and URIs, but rather than using them to serve web pages for human readers, it extends them to share information in a way that can be read automatically by computers. This enables data from different sources to be connected and queried.
+  
+  Queries over linked data are made using a semantic query language called [SPARQL](https://wordlift.io/blog/en/entity/sparql/) that allows to retrieve and manipulate data stored in Resource Description Framework (RDF) format.
+  
+  ![lod-cloud.png](/:storage/0.78mz8nklrmx.png)
+  
+  ### How to reuse the metadata about an entity in the front-end of your website
+  
+  See the Pen [Parsing JSON-LD](http://codepen.io/wanbinkimoon/pen/pNQQeB/) by nicola bertelloni ([@wanbinkimoon](http://codepen.io/wanbinkimoon)) on [CodePen](http://codepen.io).
+  
+  ---
+  
+  [html - How to implement JSON-LD? - Stack Overflow](https://stackoverflow.com/questions/30791214/how-to-implement-json-ld#30798784)
+  
+  In HTML5, the [`script` element](http://www.w3.org/TR/2014/REC-html5-20141028/scripting-1.html#the-script-element) can be used as data block:
+  
+  > When used to include data blocks (as opposed to scripts), the data must be embedded inline, the format of the data must be given using the `type` attribute, the `src` attribute must not be specified, and the contents of the `script` element must conform to the requirements defined for the format used.
+  
+  So a script element containing JSON-LD could look like this:
+  ```
+  <script type="application/ld+json">
+      {
+       "@context": "http://example.com",
+       "@type": "Example"
+      }
+  </script>
+  ```
+  
+  You [may place](https://stackoverflow.com/a/28688394/1591669) the script element(s) in the head and/or in the body.
+  
+  also see [Introduction to Structured Data  |  Search  |  Google Developers](https://developers.google.com/search/docs/guides/intro-structured-data)
+  
+  ---
+  
+  ## Schema.org - JSON-LD - Where to Place?
+  
+  [Schema.org - JSON-LD - Where to Place? - Stack Overflow](https://stackoverflow.com/questions/28687653/schema-org-json-ld-where-to-place)
+  
+  **Q.** I am looking to use JSON-LD for schema on a website. (Schema meaning schema.org data.) I know how to write the data but my question is is there a prefered location in my code to insert this data? In other words, should the JSON-LD always be in the head, body, etc.?
+  
+  From the perspectives of Schema.org, JSON-LD, and the possibly extracted RDF, it should not matter. The data is the same, no matter from where in the document it got extracted.
+  
+  **A.**
+  
+  From the perspective of HTML5:
+  
+  If it’s data about your page (or what this page is about), you could place the script element in the head, as the head element
+  
+  […] represents a collection of metadata for the Document
+  
+  But of course it would not be wrong to use body for this instead. It’s just that you shouldn’t use head for data that is not about your page or what it represents.
+  
+  **A.**
+  
+  The data can be placed anywhere. From Google's documentation:
+  
+  The data, enclosed within the <script type="application/ld+json"> ...  </script> tags as shown in the examples below, may be placed in either the <HEAD> or <BODY> region of the page that displays that event.
+  
+  You can also use data dynamically fetched using AJAX:
+  
+  JSON-LD markup inserted by Javascript that runs upon initial page load can be recognized.
+  
+  Update (as pointed by Antony in the comments)
+  
+  The latest documentation says:
+  
+  [JSON-LD is a] JavaScript notation embedded in a tag in the page head or body... Google can read JSON-LD data when it is dynamically injected into the page's contents, such as by JavaScript code or embedded widgets in your content management system.
+  
+  ---
+  
+  [SPARQL - WordLift Blog](https://wordlift.io/blog/en/entity/sparql/)
+  
+  ## Querying Semantic Data
+  
+  SPARQL (pronounced “sparkle”, a recursive acronym for SPARQL Protocol and RDF Query Language) is an RDF query language, that is, a query language for databases, able to retrieve and manipulate data stored in **Resource Description Framework** format. RDF is commonly used for modeling information in the web of linked data.
+  
+  It was made a standard by the RDF Data Access Working Group (DAWG) of the World Wide Web Consortium, and is considered as one of the key technologies of the semantic web. On 15 January 2008, SPARQL 1.0 became an official W3C Recommendation.
+  
+  Querying WordLift’s Data with SPARQL – a Cheat Sheet
+  Here we have listed few queries in SPARQL created to extract metadata being shared as linked data by semantic websites that use WordLift.
+  
+  1. What are the most recurring concepts used on the site to mark up the articles?
+  
+  ```
+  PREFIX dct: <http://purl.org/dc/terms/>
+  SELECT * WHERE {
+  SELECT ?o (COUNT() as ?count) WHERE { [] dct:references ?o }
+  GROUP BY ?o
+  } ORDER BY DESC(?count) LIMIT 10
+  ```
+  
+  2. What are the most recurring concepts taking into account the relationships created among concepts?
+  
+  ```
+  PREFIX dct: <http://purl.org/dc/terms/>
+  SELECT * WHERE {
+  SELECT ?o (COUNT() as ?count) WHERE { [] dct:relation ?o }
+  GROUP BY ?o
+  } ORDER BY DESC(?count) LIMIT 10
+  ```
+  
+  3. What are the most recurring concepts combining the relationships with articles and the relationships among entities?
+  
+  ```
+  PREFIX dct: <http://purl.org/dc/terms/>
+  SELECT * WHERE {
+  SELECT ?o (COUNT() as ?count) WHERE { { [] dct:references ?o } UNION { [] dct:relation ?o } }
+  GROUP BY ?o
+  } ORDER BY DESC(?count) LIMIT 10
+  ```
+  
+  4. How many triples have been created on the site?
+  
+  `SELECT (COUNT() AS ?no) { ?s ?p ?o }`
+  
+  5. How many entities have been created on the site?
+  
+  ```SELECT (COUNT(distinct ?s) AS ?no) { ?s a [] }```
+  
+  6. How many articles have been annotated with WordLift?
+  
+  ```SELECT (COUNT(distinct ?s) AS ?no) WHERE {?s a <http://schema.org/BlogPosting> . }```
+  
+  
+  [Uniform resource identifier - WordLift Blog](https://wordlift.io/blog/en/entity/uniform-resource-identifier/)
+  
+  ## What is the difference between URI and URL?
+  
+  A URI can be further classified as a locator, a name, or both. The term “Uniform Resource Locator” (URL) refers to the subset of URIs that, in addition to identifying a resource, provide a means of locating the resource by describing its primary access mechanism (e.g., its network “location”). The term “Uniform Resource Name” (URN) has been used historically to refer to both URIs under the “urn” scheme [RFC2141], which are required to remain globally unique and persistent even when the resource ceases to exist or becomes unavailable, and to any other URI with the properties of a name.
+'''
+tags: []
+isStarred: false
+isTrashed: false
