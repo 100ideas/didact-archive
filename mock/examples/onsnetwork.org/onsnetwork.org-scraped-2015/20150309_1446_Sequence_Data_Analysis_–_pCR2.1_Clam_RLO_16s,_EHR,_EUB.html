@@ -1,0 +1,243 @@
+<div class="entry-content">
+ <div class="wp_orcid_post">
+  <a href="http://orcid.org/0000-0002-2747-368X" rel="author" target="_blank">
+   0000-0002-2747-368X
+  </a>
+ </div>
+ <p>
+  Sequencing data was received back from GENEWIZ on Friday. The ZIP file containing all six sequence trace files (.ab1) was moved to the lab server:
+ </p>
+ <p>
+  backupordie/lab/Sequencing Data/Sanger/10-290123409_ab1.zip
+ </p>
+ <p>
+  The data files were copied to Geneious (v.7.1.7; Biomatters Ltd.) for initial manipulation.
+ </p>
+ <p>
+  The Geneious files are here (Geneious archive format):
+ </p>
+ <p>
+  backupordie/lab/Sam/Sequencing_Analysis/Sanger/ireland_clam_RLO/20150309_geneious_Ireland_Clam_RLO.geneious
+ </p>
+ <p>
+  Quality trimming and vector sequence identification was performed.
+  <br/>
+  All trimmed pairs of files were aligned using the built-in Geneious aligner. Default settings were used, except “Automatically determine sequence direction” box was checked. The alignments were visually inspected for mis-called bases and corrected where necessary. The resulting consensus sequences from each clone were exported to separate files, as well as a single, multi-FASTA file:
+ </p>
+ <p>
+  backupordie/lab/Sam/Sequencing_Analysis/Sanger/ireland_clam_RLO/Clam_RLO_clones_consensus_20150309.fa
+ </p>
+ <p>
+  Resulting sequence lengths:
+ </p>
+ <table>
+  <tbody>
+   <tr>
+    <td>
+     SEQUENCE NAME
+    </td>
+    <td>
+     LENGTH (bp)
+    </td>
+   </tr>
+   <tr>
+    <td>
+     16s_consensus_sequence
+    </td>
+    <td>
+     1507
+    </td>
+   </tr>
+   <tr>
+    <td>
+     EHR_consensus_sequence
+    </td>
+    <td>
+     198
+    </td>
+   </tr>
+   <tr>
+    <td>
+     EUB_consensus_sequence
+    </td>
+    <td>
+     1532
+    </td>
+   </tr>
+  </tbody>
+ </table>
+ <p>
+  These consensus sequences were aligned to each other using the MUSCLE alignment in Geneious, using default settings (click on images below to enlarge).
+ </p>
+ <p>
+  <span style="text-decoration: underline;">
+   Results
+  </span>
+  :
+ </p>
+ <p>
+  The alignments below show two things:
+ </p>
+ <ol>
+  <li>
+   Similarity (identity) between the sequences being aligned. This is represented as the green bar(s) above the alignments. The more green, the more sequence identity is shared between the two sequences.
+   <p>
+   </p>
+  </li>
+  <li>
+   <p>
+    The alignments between the two sequences are represented as black bars next to the corresponding sequence name. A black bar/box indicates exact sequence matches between the two sequences. A black line is indicates region(s) where the sequences do not match.
+   </p>
+  </li>
+ </ol>
+ <p>
+ </p>
+ <p>
+  <span style="text-decoration: underline;">
+   <strong>
+    16s vs. EHR
+   </strong>
+  </span>
+ </p>
+ <p>
+  Similarity: 11.25%
+ </p>
+ <p>
+  <a data-slb-active="1" data-slb-group="537" href="https://dl.dropbox.com/s/apfz27rlrb0wojr/20150309_clam_RLO_16s_vs_EHR.png?dl=0">
+   <img alt="" class="alignnone" height="63" src="images/20150309_clam_RLO_16s_vs_EHR.png" width="1490"/>
+  </a>
+ </p>
+ <p>
+ </p>
+ <p>
+  <span style="text-decoration: underline;">
+   <strong>
+    16s vs. EUB
+   </strong>
+  </span>
+ </p>
+ <p>
+  Similarity: 85.18%
+ </p>
+ <p>
+  <a data-slb-active="1" data-slb-group="537" href="https://dl.dropbox.com/s/qzmgnk7o4nm1goz/20150309_clam_RLO_16s_vs_EUB.png?dl=0">
+   <img alt="" class="alignnone" height="63" src="images/20150309_clam_RLO_16s_vs_EUB.png" width="1490"/>
+  </a>
+ </p>
+ <p>
+ </p>
+ <p>
+  <strong>
+   <span style="text-decoration: underline;">
+    EHR vs. EUB
+   </span>
+  </strong>
+ </p>
+ <p>
+  Similarity: 12.37%
+ </p>
+ <p>
+  <a data-slb-active="1" data-slb-group="537" href="https://dl.dropbox.com/s/if0k5zzi7jf5j0h/20150309_clam_RLO_EHR_vs_EUB.png?dl=0">
+   <img alt="" class="alignnone" height="63" src="images/20150309_clam_RLO_EHR_vs_EUB.png" width="1443"/>
+  </a>
+ </p>
+ <p>
+ </p>
+ <p>
+  The EHR sequence shares little similarity to the other two sequences.
+ </p>
+ <p>
+  The 16s &amp; EUB sequences are highly similar, but not identical.
+ </p>
+ <p>
+ </p>
+ <p>
+  Each of the three sequences (using the multi-FASTA file referenced above) was BLAST’d (blastn) against the NCBI nr database.
+ </p>
+ <p>
+  <span style="text-decoration: underline;">
+   Results
+  </span>
+  :
+ </p>
+ <p>
+  <strong>
+   <span style="text-decoration: underline;">
+    16s
+   </span>
+  </strong>
+ </p>
+ <p>
+  <a data-slb-active="1" data-slb-group="537" href="https://dl.dropbox.com/s/67297fc901xbw52/20150309_clam_RLO_16s_BLASTn.png?dl=0">
+   <img alt="" class="alignnone" height="599" src="images/20150309_clam_RLO_16s_BLASTn.png" width="807"/>
+  </a>
+ </p>
+ <p>
+  The sequence produced using the 16s primers is clearly amplifying the 16s sequence of
+  <em>
+   <a href="http://en.wikipedia.org/wiki/Vibrio_tapetis" target="_blank">
+    Vibrio tapetis
+   </a>
+  </em>
+  , a pathogen of cultured clams.
+ </p>
+ <p>
+ </p>
+ <p>
+  <strong>
+   <span style="text-decoration: underline;">
+    EHR
+   </span>
+  </strong>
+ </p>
+ <p>
+  <a data-slb-active="1" data-slb-group="537" href="https://dl.dropbox.com/s/ewu9gmfczh17nea/20150309_clam_RLO_EHR_BLASTn.png?dl=0">
+   <img alt="" class="alignnone" height="233" src="images/20150309_clam_RLO_EHR_BLASTn.png" width="810"/>
+  </a>
+ </p>
+ <p>
+  The sequenced captured by the EHR primers has no matches at all in the NCBI nr database. This is likely due to the length of the sequence (only 198bp), however, it’s still long enough that I feel it should match
+  <em>
+   something
+  </em>
+  . Also, just putting this here as a reminder, the EHR primer set is the only set that
+  <a href="http://onsnetwork.org/sjwfriedmanlab/2015/02/19/pcr-ireland-clam-rlo-dna-s614-19-from-20150130/" target="_blank" title="PCR – Ireland Clam RLO DNA S/6/14 #19 (from 20150130)">
+   didn’t produce amplification in the no template controls (NTC)
+  </a>
+  .
+ </p>
+ <p>
+ </p>
+ <p>
+  <strong>
+   <span style="text-decoration: underline;">
+    EUB
+   </span>
+  </strong>
+ </p>
+ <p>
+  <a data-slb-active="1" data-slb-group="537" href="https://dl.dropbox.com/s/5y92s1x3rj6vs2u/20150309_clam_RLO_EUB_BLASTn.png?dl=0">
+   <img alt="" class="alignnone" height="603" src="images/20150309_clam_RLO_EUB_BLASTn.png" width="816"/>
+  </a>
+ </p>
+ <p>
+  The product of the EUB primers matches very well to the 16s sequence of a variety of uncultured bacteria species.
+ </p>
+ <p>
+ </p>
+ <p>
+  I will relay the results to Carolyn and see how she’d like to proceed. Due to the nature of what’s being done here (using universal 16s bacterial primers), I think it would be good to sequence additional clones from each of the three cloning reactions to see if we pick up additional sequences.
+ </p>
+ <div class="addtoany_share_save_container addtoany_content_bottom">
+  <div class="a2a_kit a2a_kit_size_32 addtoany_list a2a_target" id="wpa2a_2">
+   <a class="a2a_button_facebook" href="http://www.addtoany.com/add_to/facebook?linkurl=http%3A%2F%2Fonsnetwork.org%2Fsjwfriedmanlab%2F2015%2F03%2F09%2Fsequence-data-analysis-pcr2-1clam-rlo-16s-ehr-eub%2F&amp;linkname=Sequence%20Data%20Analysis%20%E2%80%93%20pCR2.1%2FClam%20RLO%2016s%2C%20EHR%2C%20EUB" rel="nofollow" target="_blank" title="Facebook">
+   </a>
+   <a class="a2a_button_twitter" href="http://www.addtoany.com/add_to/twitter?linkurl=http%3A%2F%2Fonsnetwork.org%2Fsjwfriedmanlab%2F2015%2F03%2F09%2Fsequence-data-analysis-pcr2-1clam-rlo-16s-ehr-eub%2F&amp;linkname=Sequence%20Data%20Analysis%20%E2%80%93%20pCR2.1%2FClam%20RLO%2016s%2C%20EHR%2C%20EUB" rel="nofollow" target="_blank" title="Twitter">
+   </a>
+   <a class="a2a_button_google_plus" href="http://www.addtoany.com/add_to/google_plus?linkurl=http%3A%2F%2Fonsnetwork.org%2Fsjwfriedmanlab%2F2015%2F03%2F09%2Fsequence-data-analysis-pcr2-1clam-rlo-16s-ehr-eub%2F&amp;linkname=Sequence%20Data%20Analysis%20%E2%80%93%20pCR2.1%2FClam%20RLO%2016s%2C%20EHR%2C%20EUB" rel="nofollow" target="_blank" title="Google+">
+   </a>
+   <a class="a2a_dd addtoany_share_save" href="https://www.addtoany.com/share_save">
+   </a>
+  </div>
+ </div>
+</div>
